@@ -1,5 +1,5 @@
 # 2PBlast
-To download a version with soundtrack go to www.2pblast.kro.kr
+To download a version with soundtrack go to download.2pblast.kro.kr
 
 Download "2PBlast V2.html" to play
 For computers that have lag running 2PBlast download "2PBlast (no soundtrack).html"
