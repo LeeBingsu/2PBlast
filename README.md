@@ -19,8 +19,11 @@ Note : online play is not available right now
 
 
 Made by Bingsu
+
 Sub-Producer  Shusak
+
 Special thanks to NRS5
+
 Music https://youtu.be/ujzlfNETAj0
 
 Any bugs report to me@bingsuk.kro.kr
