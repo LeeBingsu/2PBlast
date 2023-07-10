@@ -1,7 +1,7 @@
 [Play on website](play.2pblast.kro.kr)
 
 
-To download a version with soundtrack [download](download.2pblast.kro.kr)
+To download a version with soundtrack [download](https://drive.google.com/drive/folders/1rhEKDN7i8aLwyEejg6tvnflETOqRG8ES?usp=drive_link)
 
 Download "2PBlast V2.html" to play
 For computers that have lag running 2PBlast download "2PBlast (no soundtrack).html"
