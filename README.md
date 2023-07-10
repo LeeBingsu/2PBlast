@@ -3,10 +3,6 @@
 
 To download a full version click [download](https://drive.google.com/drive/folders/1rhEKDN7i8aLwyEejg6tvnflETOqRG8ES?usp=drive_link)
 
-Download "2PBlast V2.html" to play
-
-For computers that have lag running 2PBlast download "2PBlast (no soundtrack).html"
-
 
 For player 1
 Movement : W / S
