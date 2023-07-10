@@ -1,4 +1,4 @@
-Play on website : play.2pblast.kro.kr
+Play on website : https://play.2pblast.kro.kr
 
 
 To download a version with soundtrack go to https://download.2pblast.kro.kr
