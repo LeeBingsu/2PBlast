@@ -15,6 +15,7 @@ Movement : ⬆️ / ⬇️
 Attack : ⬅️
 Skill select : ➡️
 
+Note : online play is not available right now
 
 
 Made by Bingsu
