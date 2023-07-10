@@ -1,4 +1,4 @@
-[Play on website](https://play.2pblast.kro.kr)
+[Play on website](play.2pblast.kro.kr)
 
 
 To download a version with soundtrack [download](https://drive.google.com/drive/folders/1rhEKDN7i8aLwyEejg6tvnflETOqRG8ES?usp=drive_link)
@@ -26,6 +26,6 @@ Sub-Producer  Shusak
 
 Special thanks to NRS5
 
-Music https://youtu.be/ujzlfNETAj0
+[Music](https://youtu.be/ujzlfNETAj0)
 
 Any bugs report to me@bingsuk.kro.kr
