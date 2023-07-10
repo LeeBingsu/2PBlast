@@ -1,4 +1,4 @@
-[Play on website](2Pblast(no_soundtrack))
+[Play on website](play.2pblast.kro.kr)
 
 
 To download a version with soundtrack [download](download.2pblast.kro.kr)
