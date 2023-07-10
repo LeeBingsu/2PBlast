@@ -1,4 +1,4 @@
-[Play on website](play.2pblast.kro.kr)
+[Play on website](https://leebingsu.github.io/2PBlast/2Pblast(no_soundtrack))
 
 
 To download a version with soundtrack [download](https://drive.google.com/drive/folders/1rhEKDN7i8aLwyEejg6tvnflETOqRG8ES?usp=drive_link)
