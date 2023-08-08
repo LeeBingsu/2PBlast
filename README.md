@@ -26,7 +26,7 @@ Note : online play is not available right now
 
 Made by Bingsu
 
-Sub-Producer  Shusak
+Idea by Bingsu, Shusak
 
 Special thanks to NRS5
 
