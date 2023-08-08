@@ -7,6 +7,7 @@ Download a full version
 
 
 The Check button on the main screen is in development.
+
 Please turn the button off when playing for your smooth play.
 
 
