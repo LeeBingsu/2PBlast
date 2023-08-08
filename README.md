@@ -1,4 +1,4 @@
-[Play on website](https://leebingsu.github.io/2PBlast/2Pblast(no_soundtrack))
+[Play on website](https://leebingsu.github.io/2PBlast/2Pblast)
 
 
 Download a full version
