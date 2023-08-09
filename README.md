@@ -1,7 +1,7 @@
 [Play on website](https://leebingsu.github.io/2PBlast/2Pblast)
 
 
-Download a full version
+Download html file
 -> [[Download]](https://drive.google.com/drive/folders/1rhEKDN7i8aLwyEejg6tvnflETOqRG8ES?usp=drive_link)
 
 
