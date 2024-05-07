@@ -6,9 +6,7 @@ Download html file (haven't updated for a while)
 
 
 
-The Check button on the main screen is in development.
-
-Please turn the button off when playing for your smooth play.
+Check button on the main screen is for mobile (btw haven't fixed bugs for that)
 
 
 For player 1
@@ -21,7 +19,7 @@ Movement : ⬆️ / ⬇️
 Attack : ⬅️
 Skill select : ➡️
 
-Note : online play is not available right now
+Note : online playable right now (bugs)
 
 
 Made by Bingsu
@@ -33,3 +31,5 @@ Special thanks to NRS5
 [Music](https://youtu.be/ujzlfNETAj0)
 
 Any bugs report to me@bingsuk.kro.kr
+
+귀찮다ㅏㅏㅏㅏ
