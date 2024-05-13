@@ -1,6 +1,6 @@
 <img width="646" alt="스크린샷 2024-05-14 001048" src="https://github.com/LeeBingsu/2PBlast/assets/139062081/13b9fd4f-9d5f-4401-86de-f2df61464705">
 
-[Play on website](https://2pblast.kro.kr/)
+[Play on website](https://2pblast.kro.kr/2Pblast)
 
 
 Download html file (haven't updated for a while)
