@@ -24,7 +24,7 @@ Skill select : ➡️
 Note : online playable right now (bugs)
 
 
-Made by Bingsu
+Made by [Bingsu](https://www.instagram.com/bingsuk_)
 
 Idea by Bingsu, Shusak
 
