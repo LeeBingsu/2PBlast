@@ -30,7 +30,7 @@ Idea by Bingsu, Shusak
 
 Special thanks to NRS5
 
-[Music](https://youtu.be/ujzlfNETAj0)
+[Music](https://www.youtube.com/watch?v=LzfXJV_EjXY)
 
 Any bugs report to me@bingsuk.kro.kr
 
