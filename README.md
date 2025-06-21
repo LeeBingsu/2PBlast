@@ -24,11 +24,11 @@ Skill select : ➡️
 Note : online playable right now (bugs)
 
 
-Made by [Bingsu](https://www.instagram.com/bingsuk_)
+Made by [Bingsu](https://www.instagram.com/bingsuk_), NRS5
 
 Idea by Bingsu, Shusak
 
-Special thanks to NRS5
+Special thanks to 104
 
 [Music](https://www.youtube.com/watch?v=LzfXJV_EjXY)
 
