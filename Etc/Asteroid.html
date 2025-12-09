@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asteroids - Online Multiplayer</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+        }
+        canvas {
+            display: block;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .pulse {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff; }
+            50% { box-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff, 0 0 30px #00ffff; }
+        }
+        .glow {
+            animation: glow 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-black">
+    <canvas id="gameCanvas"></canvas>
+    
+    <!-- UI Overlay -->
+    <div id="ui" class="fixed top-0 left-0 w-full p-4 flex justify-between items-start pointer-events-none">
+        <div class="text-white font-mono">
+            <div id="score" class="text-2xl">SCORE: 0</div>
+            <div id="level" class="text-lg text-cyan-400">LEVEL 1</div>
+            <div id="connectionStatus" class="text-sm text-gray-500 mt-2"></div>
+        </div>
+        <div class="flex flex-col items-end gap-2">
+            <div id="lives" class="flex gap-2"></div>
+            <div id="p2lives" class="flex gap-2"></div>
+        </div>
+    </div>
+    
+    <!-- Start Screen -->
+    <div id="startScreen" class="fixed inset-0 flex flex-col items-center justify-center bg-black/90">
+        <h1 class="text-6xl font-bold text-white mb-2 tracking-widest">ASTEROIDS</h1>
+        <p class="text-cyan-400 mb-8 text-lg">Online Multiplayer</p>
+        
+        <div id="controlsInfo" class="text-gray-300 text-center mb-8 font-mono text-sm">
+            <div class="flex gap-8 justify-center">
+                <div class="text-cyan-400">
+                    <p class="font-bold mb-1">PLAYER 1</p>
+                    <p>↑ ← → - Move</p>
+                    <p>SPACE - Shoot</p>
+                </div>
+                <div class="text-orange-400">
+                    <p class="font-bold mb-1">PLAYER 2</p>
+                    <p>W A D - Move</p>
+                    <p>Q - Shoot</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Game Mode Selection -->
+        <div id="modeSelect" class="flex flex-col items-center gap-4">
+            <button id="soloBtn" class="w-64 px-8 py-3 bg-gray-700 text-white font-bold rounded hover:bg-gray-600 transition pointer-events-auto">
+                SOLO PLAY
+            </button>
+            
+            <button id="dualBtn" class="w-64 px-8 py-3 bg-gradient-to-r from-cyan-600 to-orange-500 text-white font-bold rounded hover:from-cyan-500 hover:to-orange-400 transition pointer-events-auto glow">
+                👥 LOCAL CO-OP (2 Players)
+            </button>
+            
+            <div class="text-gray-500 my-2">— ONLINE MULTIPLAYER —</div>
+            
+            <button id="hostBtn" class="w-64 px-8 py-3 bg-cyan-600 text-white font-bold rounded hover:bg-cyan-500 transition pointer-events-auto">
+                HOST GAME
+            </button>
+            
+            <button id="joinBtn" class="w-64 px-8 py-3 bg-purple-600 text-white font-bold rounded hover:bg-purple-500 transition pointer-events-auto">
+                JOIN GAME
+            </button>
+        </div>
+        
+        <!-- Host Screen -->
+        <div id="hostScreen" class="hidden flex-col items-center gap-4">
+            <p class="text-gray-400">Share this code with your friend:</p>
+            <div id="roomCode" class="text-4xl font-mono font-bold text-cyan-400 tracking-widest bg-gray-900 px-6 py-3 rounded-lg border-2 border-cyan-500"></div>
+            <p id="hostStatus" class="text-yellow-400 pulse">Waiting for player to join...</p>
+            <button id="backFromHost" class="mt-4 px-6 py-2 bg-gray-700 text-white rounded hover:bg-gray-600 transition pointer-events-auto">
+                ← BACK
+            </button>
+        </div>
+        
+        <!-- Join Screen -->
+        <div id="joinScreen" class="hidden flex-col items-center gap-4">
+            <p class="text-gray-400">Enter the room code:</p>
+            <input id="codeInput" type="text" maxlength="6" placeholder="XXXXXX" 
+                class="text-3xl font-mono font-bold text-center tracking-widest bg-gray-900 text-purple-400 px-6 py-3 rounded-lg border-2 border-purple-500 w-48 uppercase pointer-events-auto focus:outline-none focus:border-purple-400">
+            <button id="connectBtn" class="w-48 px-8 py-3 bg-purple-600 text-white font-bold rounded hover:bg-purple-500 transition pointer-events-auto">
+                CONNECT
+            </button>
+            <p id="joinStatus" class="text-gray-500"></p>
+            <button id="backFromJoin" class="mt-4 px-6 py-2 bg-gray-700 text-white rounded hover:bg-gray-600 transition pointer-events-auto">
+                ← BACK
+            </button>
+        </div>
+    </div>
+    
+    <!-- Game Over Screen -->
+    <div id="gameOverScreen" class="fixed inset-0 flex flex-col items-center justify-center bg-black/80 hidden">
+        <h1 class="text-5xl font-bold text-red-500 mb-4">GAME OVER</h1>
+        <p id="finalScore" class="text-2xl text-white mb-8">Final Score: 0</p>
+        <button id="restartBtn" class="px-8 py-3 bg-cyan-500 text-black font-bold rounded hover:bg-cyan-400 transition pointer-events-auto">
+            PLAY AGAIN
+        </button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Multiplayer state
+        let peer = null;
+        let conn = null;
+        let isHost = false;
+        let isMultiplayer = false;
+        let isDualMode = false; // Local co-op mode
+        let myId = '';
+        let remotePlayerState = null;
+        let lastSentState = 0;
+        const SYNC_RATE = 1000 / 30; // 30 times per second
+        
+        // Game state
+        let gameState = 'start';
+        let score = 0;
+        let level = 1;
+        let lives = 3;
+        let p2Lives = 3;
+        let ship;
+        let ship2 = null;
+        let asteroids = [];
+        let bullets = [];
+        let particles = [];
+        let ufos = [];
+        let ufoBullets = [];
+        let keys = {};
+        let lastUfoSpawn = 0;
+        let invincibilityTimer = 0;
+        let p2InvincibilityTimer = 0;
+        let asteroidSeed = 0;
+        
+        // Constants
+        const SHIP_SIZE = 20;
+        const ROTATION_SPEED = 0.1;
+        const THRUST = 0.15;
+        const FRICTION = 0.99;
+        const BULLET_SPEED = 10;
+        const MAX_BULLETS = 5;
+        const ASTEROID_SPEED = 2;
+        const UFO_SPAWN_INTERVAL = 15000;
+        
+        // Generate room code
+        function generateRoomCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for (let i = 0; i < 6; i++) {
+                code += chars[Math.floor(Math.random() * chars.length)];
+            }
+            return code;
+        }
+        
+        // Ship class
+        class Ship {
+            constructor(isPlayer2 = false) {
+                this.isPlayer2 = isPlayer2;
+                this.color = isPlayer2 ? '#ff6600' : '#00ffff';
+                this.reset();
+            }
+            
+            reset() {
+                this.x = this.isPlayer2 ? canvas.width / 2 + 100 : canvas.width / 2 - 100;
+                this.y = canvas.height / 2;
+                this.vx = 0;
+                this.vy = 0;
+                this.angle = -Math.PI / 2;
+                this.thrusting = false;
+                this.alive = true;
+            }
+            
+            getState() {
+                return {
+                    x: this.x,
+                    y: this.y,
+                    vx: this.vx,
+                    vy: this.vy,
+                    angle: this.angle,
+                    thrusting: this.thrusting,
+                    alive: this.alive
+                };
+            }
+            
+            setState(state) {
+                this.x = state.x;
+                this.y = state.y;
+                this.vx = state.vx;
+                this.vy = state.vy;
+                this.angle = state.angle;
+                this.thrusting = state.thrusting;
+                this.alive = state.alive;
+            }
+            
+            update() {
+                if (!this.alive) return;
+                
+                if (this.thrusting) {
+                    this.vx += Math.cos(this.angle) * THRUST;
+                    this.vy += Math.sin(this.angle) * THRUST;
+                    
+                    if (Math.random() > 0.3) {
+                        particles.push(new Particle(
+                            this.x - Math.cos(this.angle) * SHIP_SIZE,
+                            this.y - Math.sin(this.angle) * SHIP_SIZE,
+                            -Math.cos(this.angle) * 2 + (Math.random() - 0.5) * 2,
+                            -Math.sin(this.angle) * 2 + (Math.random() - 0.5) * 2,
+                            ['#ff6600', '#ffaa00', '#ff3300'][Math.floor(Math.random() * 3)],
+                            20
+                        ));
+                    }
+                }
+                
+                this.vx *= FRICTION;
+                this.vy *= FRICTION;
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                this.x = wrap(this.x, canvas.width);
+                this.y = wrap(this.y, canvas.height);
+            }
+            
+            draw() {
+                if (!this.alive) return;
+                
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle + Math.PI / 2);
+                
+                const invTimer = this.isPlayer2 ? p2InvincibilityTimer : invincibilityTimer;
+                if (invTimer > 0 && Math.floor(invTimer / 5) % 2 === 0) {
+                    ctx.globalAlpha = 0.3;
+                }
+                
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, -SHIP_SIZE);
+                ctx.lineTo(-SHIP_SIZE * 0.7, SHIP_SIZE * 0.7);
+                ctx.lineTo(0, SHIP_SIZE * 0.4);
+                ctx.lineTo(SHIP_SIZE * 0.7, SHIP_SIZE * 0.7);
+                ctx.closePath();
+                ctx.stroke();
+                
+                // Player indicator
+                if (isMultiplayer) {
+                    ctx.fillStyle = this.color;
+                    ctx.font = '12px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(this.isPlayer2 ? 'P2' : 'P1', 0, -SHIP_SIZE - 10);
+                }
+                
+                if (this.thrusting) {
+                    ctx.strokeStyle = '#ff6600';
+                    ctx.beginPath();
+                    ctx.moveTo(-SHIP_SIZE * 0.3, SHIP_SIZE * 0.7);
+                    ctx.lineTo(0, SHIP_SIZE * 1.2 + Math.random() * 10);
+                    ctx.lineTo(SHIP_SIZE * 0.3, SHIP_SIZE * 0.7);
+                    ctx.stroke();
+                }
+                
+                ctx.restore();
+            }
+            
+            shoot() {
+                if (!this.alive) return;
+                const playerBullets = bullets.filter(b => b.ownerId === (this.isPlayer2 ? 'p2' : 'p1'));
+                if (playerBullets.length < MAX_BULLETS) {
+                    const bullet = new Bullet(
+                        this.x + Math.cos(this.angle) * SHIP_SIZE,
+                        this.y + Math.sin(this.angle) * SHIP_SIZE,
+                        Math.cos(this.angle) * BULLET_SPEED + this.vx,
+                        Math.sin(this.angle) * BULLET_SPEED + this.vy,
+                        false,
+                        this.isPlayer2 ? 'p2' : 'p1'
+                    );
+                    bullet.color = this.color;
+                    bullets.push(bullet);
+                    return bullet;
+                }
+                return null;
+            }
+        }
+        
+        // Bullet class
+        class Bullet {
+            constructor(x, y, vx, vy, isUfo = false, ownerId = 'p1') {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.life = 60;
+                this.isUfo = isUfo;
+                this.ownerId = ownerId;
+                this.color = '#ffffff';
+                this.id = Math.random().toString(36).substr(2, 9);
+            }
+            
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.x = wrap(this.x, canvas.width);
+                this.y = wrap(this.y, canvas.height);
+                this.life--;
+            }
+            
+            draw() {
+                ctx.fillStyle = this.isUfo ? '#ff00ff' : this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        // Asteroid class
+        class Asteroid {
+            constructor(x, y, size, id = null, vertices = null) {
+                this.x = x;
+                this.y = y;
+                this.size = size;
+                this.radius = size * 15 + 10;
+                this.id = id || Math.random().toString(36).substr(2, 9);
+                
+                const speed = ASTEROID_SPEED + (level * 0.2);
+                const angle = Math.random() * Math.PI * 2;
+                this.vx = Math.cos(angle) * speed * (Math.random() + 0.5);
+                this.vy = Math.sin(angle) * speed * (Math.random() + 0.5);
+                this.rotation = 0;
+                this.rotationSpeed = (Math.random() - 0.5) * 0.05;
+                
+                if (vertices) {
+                    this.vertices = vertices;
+                } else {
+                    this.vertices = [];
+                    const numVertices = 8 + Math.floor(Math.random() * 5);
+                    for (let i = 0; i < numVertices; i++) {
+                        const a = (i / numVertices) * Math.PI * 2;
+                        const variance = 0.7 + Math.random() * 0.3;
+                        this.vertices.push({
+                            x: Math.cos(a) * this.radius * variance,
+                            y: Math.sin(a) * this.radius * variance
+                        });
+                    }
+                }
+            }
+            
+            getState() {
+                return {
+                    x: this.x,
+                    y: this.y,
+                    size: this.size,
+                    vx: this.vx,
+                    vy: this.vy,
+                    rotation: this.rotation,
+                    rotationSpeed: this.rotationSpeed,
+                    vertices: this.vertices,
+                    id: this.id
+                };
+            }
+            
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.x = wrap(this.x, canvas.width);
+                this.y = wrap(this.y, canvas.height);
+                this.rotation += this.rotationSpeed;
+            }
+            
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                
+                ctx.strokeStyle = '#888888';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(this.vertices[0].x, this.vertices[0].y);
+                for (let v of this.vertices) {
+                    ctx.lineTo(v.x, v.y);
+                }
+                ctx.closePath();
+                ctx.stroke();
+                
+                ctx.restore();
+            }
+            
+            split() {
+                for (let i = 0; i < 10 + this.size * 5; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 3 + 1;
+                    particles.push(new Particle(
+                        this.x, this.y,
+                        Math.cos(angle) * speed,
+                        Math.sin(angle) * speed,
+                        '#ffffff',
+                        30 + Math.random() * 20
+                    ));
+                }
+                
+                if (this.size > 1) {
+                    return [
+                        new Asteroid(this.x, this.y, this.size - 1),
+                        new Asteroid(this.x, this.y, this.size - 1)
+                    ];
+                }
+                return [];
+            }
+        }
+        
+        // Particle class
+        class Particle {
+            constructor(x, y, vx, vy, color, life) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.color = color;
+                this.life = life;
+                this.maxLife = life;
+            }
+            
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+                this.life--;
+            }
+            
+            draw() {
+                ctx.globalAlpha = this.life / this.maxLife;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+        
+        // UFO class
+        class UFO {
+            constructor(id = null) {
+                this.id = id || Math.random().toString(36).substr(2, 9);
+                this.size = Math.random() > 0.5 + level * 0.05 ? 'large' : 'small';
+                this.radius = this.size === 'large' ? 30 : 15;
+                this.y = Math.random() * canvas.height;
+                this.direction = Math.random() > 0.5 ? 1 : -1;
+                this.x = this.direction > 0 ? -this.radius : canvas.width + this.radius;
+                this.vx = (2 + level * 0.3) * this.direction;
+                this.vy = 0;
+                this.shootTimer = 60;
+                this.directionTimer = 60;
+            }
+            
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                this.directionTimer--;
+                if (this.directionTimer <= 0) {
+                    this.vy = (Math.random() - 0.5) * 4;
+                    this.directionTimer = 30 + Math.random() * 60;
+                }
+                
+                if (this.y < this.radius) this.y = this.radius;
+                if (this.y > canvas.height - this.radius) this.y = canvas.height - this.radius;
+                
+                // Only host controls UFO shooting
+                if (isHost || !isMultiplayer) {
+                    this.shootTimer--;
+                    if (this.shootTimer <= 0) {
+                        this.shoot();
+                        this.shootTimer = this.size === 'large' ? 90 : 45;
+                    }
+                }
+            }
+            
+            shoot() {
+                let angle;
+                // Target closest player
+                let target = ship;
+                if (ship2 && ship2.alive) {
+                    const d1 = distance(this, ship);
+                    const d2 = distance(this, ship2);
+                    if (d2 < d1 || !ship.alive) target = ship2;
+                }
+                
+                if (this.size === 'small') {
+                    angle = Math.atan2(target.y - this.y, target.x - this.x);
+                    angle += (Math.random() - 0.5) * 0.3;
+                } else {
+                    angle = Math.random() * Math.PI * 2;
+                }
+                
+                ufoBullets.push(new Bullet(
+                    this.x, this.y,
+                    Math.cos(angle) * 6,
+                    Math.sin(angle) * 6,
+                    true,
+                    'ufo'
+                ));
+            }
+            
+            draw() {
+                ctx.strokeStyle = '#ff00ff';
+                ctx.lineWidth = 2;
+                
+                ctx.beginPath();
+                ctx.ellipse(this.x, this.y, this.radius, this.radius * 0.4, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.ellipse(this.x, this.y - this.radius * 0.2, this.radius * 0.5, this.radius * 0.3, 0, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            
+            isOffScreen() {
+                return this.x < -this.radius * 2 || this.x > canvas.width + this.radius * 2;
+            }
+        }
+        
+        // Utility functions
+        function wrap(value, max) {
+            if (value < 0) return max;
+            if (value > max) return 0;
+            return value;
+        }
+        
+        function distance(a, b) {
+            return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+        }
+        
+        function spawnAsteroids(count) {
+            for (let i = 0; i < count; i++) {
+                let x, y;
+                do {
+                    x = Math.random() * canvas.width;
+                    y = Math.random() * canvas.height;
+                } while (distance({x, y}, ship) < 200 || (ship2 && distance({x, y}, ship2) < 200));
+                
+                asteroids.push(new Asteroid(x, y, 3));
+            }
+        }
+        
+        function createExplosion(x, y, color, count) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 5 + 2;
+                particles.push(new Particle(
+                    x, y,
+                    Math.cos(angle) * speed,
+                    Math.sin(angle) * speed,
+                    color,
+                    40 + Math.random() * 30
+                ));
+            }
+        }
+        
+        function updateLivesDisplay() {
+            const livesDiv = document.getElementById('lives');
+            livesDiv.innerHTML = '';
+            for (let i = 0; i < lives; i++) {
+                const shipIcon = document.createElement('div');
+                shipIcon.innerHTML = `
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00ffff" stroke-width="2">
+                        <path d="M12 2 L6 20 L12 16 L18 20 Z"/>
+                    </svg>
+                `;
+                livesDiv.appendChild(shipIcon);
+            }
+            
+            // Player 2 lives
+            const p2LivesDiv = document.getElementById('p2lives');
+            p2LivesDiv.innerHTML = '';
+            if (isMultiplayer || isDualMode) {
+                for (let i = 0; i < p2Lives; i++) {
+                    const shipIcon = document.createElement('div');
+                    shipIcon.innerHTML = `
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff6600" stroke-width="2">
+                            <path d="M12 2 L6 20 L12 16 L18 20 Z"/>
+                        </svg>
+                    `;
+                    p2LivesDiv.appendChild(shipIcon);
+                }
+            }
+        }
+        
+        // Network functions
+        function sendGameState() {
+            if (!conn || !conn.open) return;
+            
+            const state = {
+                type: 'gameState',
+                ship: ship.getState(),
+                score: score,
+                level: level,
+                lives: lives,
+                p2Lives: p2Lives,
+                timestamp: Date.now()
+            };
+            
+            // Host sends authoritative game state
+            if (isHost) {
+                state.asteroids = asteroids.map(a => a.getState());
+                state.ufos = ufos.map(u => ({x: u.x, y: u.y, size: u.size, id: u.id, vx: u.vx, vy: u.vy}));
+                state.ufoBullets = ufoBullets.map(b => ({x: b.x, y: b.y, vx: b.vx, vy: b.vy, life: b.life}));
+            }
+            
+            conn.send(state);
+        }
+        
+        function sendEvent(event) {
+            if (!conn || !conn.open) return;
+            conn.send(event);
+        }
+        
+        function handleNetworkMessage(data) {
+            switch(data.type) {
+                case 'gameState':
+                    if (ship2) {
+                        ship2.setState(data.ship);
+                    }
+                    
+                    // Client receives authoritative state from host
+                    if (!isHost && data.asteroids) {
+                        // Sync asteroids
+                        asteroids = data.asteroids.map(a => {
+                            const ast = new Asteroid(a.x, a.y, a.size, a.id, a.vertices);
+                            ast.vx = a.vx;
+                            ast.vy = a.vy;
+                            ast.rotation = a.rotation;
+                            ast.rotationSpeed = a.rotationSpeed;
+                            return ast;
+                        });
+                        
+                        // Sync UFOs
+                        ufos = data.ufos.map(u => {
+                            const ufo = new UFO(u.id);
+                            ufo.x = u.x;
+                            ufo.y = u.y;
+                            ufo.size = u.size;
+                            ufo.vx = u.vx;
+                            ufo.vy = u.vy;
+                            return ufo;
+                        });
+                        
+                        // Sync UFO bullets
+                        ufoBullets = data.ufoBullets.map(b => {
+                            return new Bullet(b.x, b.y, b.vx, b.vy, true, 'ufo');
+                        });
+                        
+                        score = data.score;
+                        level = data.level;
+                        document.getElementById('score').textContent = `SCORE: ${score}`;
+                        document.getElementById('level').textContent = `LEVEL ${level}`;
+                    }
+                    
+                    if (isHost) {
+                        p2Lives = data.lives;
+                    } else {
+                        lives = data.p2Lives;
+                        p2Lives = data.lives;
+                    }
+                    updateLivesDisplay();
+                    break;
+                    
+                case 'shoot':
+                    if (ship2) {
+                        const bullet = new Bullet(data.x, data.y, data.vx, data.vy, false, 'p2');
+                        bullet.color = '#ff6600';
+                        bullets.push(bullet);
+                    }
+                    break;
+                    
+                case 'asteroidHit':
+                    const ai = asteroids.findIndex(a => a.id === data.asteroidId);
+                    if (ai !== -1) {
+                        const newAsteroids = asteroids[ai].split();
+                        asteroids.splice(ai, 1, ...newAsteroids);
+                        score += data.points;
+                        document.getElementById('score').textContent = `SCORE: ${score}`;
+                    }
+                    break;
+                    
+                case 'ufoHit':
+                    const ui = ufos.findIndex(u => u.id === data.ufoId);
+                    if (ui !== -1) {
+                        createExplosion(ufos[ui].x, ufos[ui].y, '#ff00ff', 30);
+                        ufos.splice(ui, 1);
+                        score += data.points;
+                        document.getElementById('score').textContent = `SCORE: ${score}`;
+                    }
+                    break;
+                    
+                case 'playerDeath':
+                    if (ship2) {
+                        createExplosion(ship2.x, ship2.y, '#ff6600', 30);
+                        ship2.reset();
+                        p2InvincibilityTimer = 180;
+                    }
+                    break;
+                    
+                case 'startGame':
+                    startMultiplayerGame();
+                    break;
+                    
+                case 'gameOver':
+                    gameOver();
+                    break;
+            }
+        }
+        
+        function setupHost() {
+            const roomCode = generateRoomCode();
+            document.getElementById('roomCode').textContent = roomCode;
+            document.getElementById('modeSelect').classList.add('hidden');
+            document.getElementById('hostScreen').classList.remove('hidden');
+            document.getElementById('hostScreen').classList.add('flex');
+            
+            peer = new Peer(roomCode);
+            isHost = true;
+            
+            peer.on('open', (id) => {
+                myId = id;
+                document.getElementById('connectionStatus').textContent = `Room: ${id}`;
+            });
+            
+            peer.on('connection', (connection) => {
+                conn = connection;
+                document.getElementById('hostStatus').textContent = 'Player connected! Starting game...';
+                document.getElementById('hostStatus').classList.remove('pulse');
+                document.getElementById('hostStatus').classList.add('text-green-400');
+                
+                conn.on('open', () => {
+                    isMultiplayer = true;
+                    setTimeout(() => {
+                        sendEvent({type: 'startGame'});
+                        startMultiplayerGame();
+                    }, 1000);
+                });
+                
+                conn.on('data', handleNetworkMessage);
+                
+                conn.on('close', () => {
+                    document.getElementById('connectionStatus').textContent = 'Player disconnected';
+                    isMultiplayer = false;
+                    ship2 = null;
+                });
+            });
+            
+            peer.on('error', (err) => {
+                console.error('Peer error:', err);
+                document.getElementById('hostStatus').textContent = 'Error: ' + err.type;
+            });
+        }
+        
+        function setupClient(roomCode) {
+            document.getElementById('joinStatus').textContent = 'Connecting...';
+            document.getElementById('joinStatus').classList.add('text-yellow-400');
+            
+            peer = new Peer();
+            isHost = false;
+            
+            peer.on('open', (id) => {
+                myId = id;
+                conn = peer.connect(roomCode.toUpperCase());
+                
+                conn.on('open', () => {
+                    document.getElementById('joinStatus').textContent = 'Connected! Starting game...';
+                    document.getElementById('joinStatus').classList.remove('text-yellow-400');
+                    document.getElementById('joinStatus').classList.add('text-green-400');
+                    isMultiplayer = true;
+                });
+                
+                conn.on('data', handleNetworkMessage);
+                
+                conn.on('close', () => {
+                    document.getElementById('connectionStatus').textContent = 'Disconnected from host';
+                    isMultiplayer = false;
+                    ship2 = null;
+                });
+            });
+            
+            peer.on('error', (err) => {
+                console.error('Peer error:', err);
+                document.getElementById('joinStatus').textContent = 'Error: ' + err.type;
+                document.getElementById('joinStatus').classList.remove('text-yellow-400');
+                document.getElementById('joinStatus').classList.add('text-red-400');
+            });
+        }
+        
+        function startMultiplayerGame() {
+            gameState = 'playing';
+            score = 0;
+            level = 1;
+            lives = 3;
+            p2Lives = 3;
+            ship = new Ship(false);
+            ship2 = new Ship(true);
+            asteroids = [];
+            bullets = [];
+            particles = [];
+            ufos = [];
+            ufoBullets = [];
+            invincibilityTimer = 120;
+            p2InvincibilityTimer = 120;
+            lastUfoSpawn = Date.now();
+            
+            if (isHost) {
+                spawnAsteroids(4);
+            }
+            
+            updateLivesDisplay();
+            
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            document.getElementById('score').textContent = 'SCORE: 0';
+            document.getElementById('level').textContent = 'LEVEL 1';
+            document.getElementById('connectionStatus').textContent = isHost ? 'HOST' : 'CLIENT';
+        }
+        
+        function startGame() {
+            gameState = 'playing';
+            score = 0;
+            level = 1;
+            lives = 3;
+            ship = new Ship();
+            ship2 = null;
+            asteroids = [];
+            bullets = [];
+            particles = [];
+            ufos = [];
+            ufoBullets = [];
+            invincibilityTimer = 120;
+            lastUfoSpawn = Date.now();
+            isMultiplayer = false;
+            isDualMode = false;
+            
+            spawnAsteroids(4);
+            updateLivesDisplay();
+            
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            document.getElementById('score').textContent = 'SCORE: 0';
+            document.getElementById('level').textContent = 'LEVEL 1';
+            document.getElementById('connectionStatus').textContent = '';
+        }
+        
+        function startDualMode() {
+            gameState = 'playing';
+            score = 0;
+            level = 1;
+            lives = 3;
+            p2Lives = 3;
+            ship = new Ship(false);
+            ship2 = new Ship(true);
+            asteroids = [];
+            bullets = [];
+            particles = [];
+            ufos = [];
+            ufoBullets = [];
+            invincibilityTimer = 120;
+            p2InvincibilityTimer = 120;
+            lastUfoSpawn = Date.now();
+            isMultiplayer = false;
+            isDualMode = true;
+            
+            spawnAsteroids(4);
+            updateLivesDisplay();
+            
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            document.getElementById('score').textContent = 'SCORE: 0';
+            document.getElementById('level').textContent = 'LEVEL 1';
+            document.getElementById('connectionStatus').textContent = 'LOCAL CO-OP';
+        }
+        
+        function gameOver() {
+            gameState = 'gameOver';
+            document.getElementById('finalScore').textContent = `Final Score: ${score}`;
+            document.getElementById('gameOverScreen').classList.remove('hidden');
+        }
+        
+        function nextLevel() {
+            level++;
+            document.getElementById('level').textContent = `LEVEL ${level}`;
+            if (isHost || !isMultiplayer) {
+                spawnAsteroids(3 + level);
+            }
+            invincibilityTimer = 120;
+            p2InvincibilityTimer = 120;
+        }
+        
+        function loseLife(isP2 = false) {
+            if (isP2) {
+                p2Lives--;
+            } else {
+                lives--;
+            }
+            updateLivesDisplay();
+            
+            const targetShip = isP2 ? ship2 : ship;
+            
+            // In dual mode, check combined lives; in solo, just check player lives
+            const totalLives = (isDualMode || isMultiplayer) ? (lives + p2Lives) : lives;
+            
+            if (isP2 && p2Lives <= 0) {
+                // Player 2 is out of lives
+                createExplosion(targetShip.x, targetShip.y, targetShip.color, 50);
+                targetShip.alive = false;
+                if (lives <= 0) {
+                    if (isMultiplayer) sendEvent({type: 'gameOver'});
+                    gameOver();
+                }
+            } else if (!isP2 && lives <= 0) {
+                // Player 1 is out of lives
+                createExplosion(targetShip.x, targetShip.y, targetShip.color, 50);
+                targetShip.alive = false;
+                if (p2Lives <= 0 || (!isDualMode && !isMultiplayer)) {
+                    if (isMultiplayer) sendEvent({type: 'gameOver'});
+                    gameOver();
+                }
+            } else {
+                createExplosion(targetShip.x, targetShip.y, targetShip.color, 30);
+                targetShip.reset();
+                if (isP2) {
+                    p2InvincibilityTimer = 180;
+                } else {
+                    invincibilityTimer = 180;
+                    if (isMultiplayer) {
+                        sendEvent({type: 'playerDeath'});
+                    }
+                }
+            }
+        }
+        
+        // Game loop
+        function update() {
+            if (gameState !== 'playing') return;
+            
+            // Handle input for Player 1 (Arrow keys + Space)
+            if (keys['ArrowLeft']) ship.angle -= ROTATION_SPEED;
+            if (keys['ArrowRight']) ship.angle += ROTATION_SPEED;
+            ship.thrusting = keys['ArrowUp'];
+            
+            // Handle input for Player 2 in dual mode (WASD + Q)
+            if (isDualMode && ship2 && ship2.alive) {
+                if (keys['KeyA']) ship2.angle -= ROTATION_SPEED;
+                if (keys['KeyD']) ship2.angle += ROTATION_SPEED;
+                ship2.thrusting = keys['KeyW'];
+            }
+            
+            // Solo mode uses both control schemes
+            if (!isDualMode && !isMultiplayer) {
+                if (keys['KeyA']) ship.angle -= ROTATION_SPEED;
+                if (keys['KeyD']) ship.angle += ROTATION_SPEED;
+                if (keys['KeyW']) ship.thrusting = true;
+            }
+            
+            if (invincibilityTimer > 0) invincibilityTimer--;
+            if (p2InvincibilityTimer > 0) p2InvincibilityTimer--;
+            
+            ship.update();
+            if (ship2) ship2.update();
+            
+            // Send state to peer
+            if (isMultiplayer && Date.now() - lastSentState > SYNC_RATE) {
+                sendGameState();
+                lastSentState = Date.now();
+            }
+            
+            bullets = bullets.filter(b => {
+                b.update();
+                return b.life > 0;
+            });
+            
+            ufoBullets = ufoBullets.filter(b => {
+                b.update();
+                return b.life > 0;
+            });
+            
+            asteroids.forEach(a => a.update());
+            
+            particles = particles.filter(p => {
+                p.update();
+                return p.life > 0;
+            });
+            
+            ufos = ufos.filter(u => {
+                u.update();
+                return !u.isOffScreen();
+            });
+            
+            // Only host spawns UFOs
+            if ((isHost || !isMultiplayer) && Date.now() - lastUfoSpawn > UFO_SPAWN_INTERVAL - level * 500) {
+                ufos.push(new UFO());
+                lastUfoSpawn = Date.now();
+            }
+            
+            // Collision detection
+            bullets.forEach((bullet, bi) => {
+                asteroids.forEach((asteroid, ai) => {
+                    if (distance(bullet, asteroid) < asteroid.radius) {
+                        bullets.splice(bi, 1);
+                        const newAsteroids = asteroid.split();
+                        const points = [100, 50, 20][asteroid.size - 1];
+                        
+                        if (isMultiplayer && bullet.ownerId === 'p1') {
+                            sendEvent({type: 'asteroidHit', asteroidId: asteroid.id, points: points});
+                        }
+                        
+                        asteroids.splice(ai, 1, ...newAsteroids);
+                        score += points;
+                        document.getElementById('score').textContent = `SCORE: ${score}`;
+                    }
+                });
+            });
+            
+            bullets.forEach((bullet, bi) => {
+                ufos.forEach((ufo, ui) => {
+                    if (distance(bullet, ufo) < ufo.radius) {
+                        bullets.splice(bi, 1);
+                        const points = ufo.size === 'small' ? 1000 : 200;
+                        
+                        if (isMultiplayer && bullet.ownerId === 'p1') {
+                            sendEvent({type: 'ufoHit', ufoId: ufo.id, points: points});
+                        }
+                        
+                        createExplosion(ufo.x, ufo.y, '#ff00ff', 30);
+                        ufos.splice(ui, 1);
+                        score += points;
+                        document.getElementById('score').textContent = `SCORE: ${score}`;
+                    }
+                });
+            });
+            
+            // Ship vs Asteroids
+            if (invincibilityTimer <= 0 && ship.alive) {
+                for (let asteroid of asteroids) {
+                    if (distance(ship, asteroid) < asteroid.radius + SHIP_SIZE * 0.5) {
+                        loseLife(false);
+                        break;
+                    }
+                }
+                
+                for (let ufo of ufos) {
+                    if (distance(ship, ufo) < ufo.radius + SHIP_SIZE * 0.5) {
+                        loseLife(false);
+                        break;
+                    }
+                }
+                
+                for (let bullet of ufoBullets) {
+                    if (distance(ship, bullet) < SHIP_SIZE * 0.5) {
+                        loseLife(false);
+                        break;
+                    }
+                }
+            }
+            
+            // Ship2 collisions for dual mode
+            if (isDualMode && ship2 && p2InvincibilityTimer <= 0 && ship2.alive) {
+                for (let asteroid of asteroids) {
+                    if (distance(ship2, asteroid) < asteroid.radius + SHIP_SIZE * 0.5) {
+                        loseLife(true);
+                        break;
+                    }
+                }
+                
+                for (let ufo of ufos) {
+                    if (distance(ship2, ufo) < ufo.radius + SHIP_SIZE * 0.5) {
+                        loseLife(true);
+                        break;
+                    }
+                }
+                
+                for (let bullet of ufoBullets) {
+                    if (distance(ship2, bullet) < SHIP_SIZE * 0.5) {
+                        loseLife(true);
+                        break;
+                    }
+                }
+            }
+            
+            // Ship2 collisions for online multiplayer (only check locally for our own ship)
+            if (isMultiplayer && ship2 && p2InvincibilityTimer <= 0 && ship2.alive && !isHost) {
+                for (let asteroid of asteroids) {
+                    if (distance(ship2, asteroid) < asteroid.radius + SHIP_SIZE * 0.5) {
+                        // This would be handled by the other player
+                        break;
+                    }
+                }
+            }
+            
+            if (asteroids.length === 0 && gameState === 'playing') {
+                nextLevel();
+            }
+        }
+        
+        function draw() {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#333333';
+            for (let i = 0; i < 100; i++) {
+                const x = (i * 7919) % canvas.width;
+                const y = (i * 6271) % canvas.height;
+                ctx.fillRect(x, y, 1, 1);
+            }
+            
+            if (gameState === 'playing' || gameState === 'gameOver') {
+                particles.forEach(p => p.draw());
+                bullets.forEach(b => b.draw());
+                ufoBullets.forEach(b => b.draw());
+                asteroids.forEach(a => a.draw());
+                ufos.forEach(u => u.draw());
+                
+                if (gameState === 'playing') {
+                    ship.draw();
+                    if (ship2) ship2.draw();
+                }
+            }
+        }
+        
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Event listeners
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            
+            // Player 1 shoots with Space
+            if (e.code === 'Space' && gameState === 'playing') {
+                const bullet = ship.shoot();
+                if (bullet && isMultiplayer) {
+                    sendEvent({
+                        type: 'shoot',
+                        x: bullet.x,
+                        y: bullet.y,
+                        vx: bullet.vx,
+                        vy: bullet.vy
+                    });
+                }
+                e.preventDefault();
+            }
+            
+            // Player 2 shoots with Q in dual mode
+            if (e.code === 'KeyQ' && gameState === 'playing' && isDualMode && ship2) {
+                ship2.shoot();
+                e.preventDefault();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+        
+        // UI event listeners
+        document.getElementById('soloBtn').addEventListener('click', startGame);
+        document.getElementById('dualBtn').addEventListener('click', startDualMode);
+        document.getElementById('hostBtn').addEventListener('click', setupHost);
+        document.getElementById('joinBtn').addEventListener('click', () => {
+            document.getElementById('modeSelect').classList.add('hidden');
+            document.getElementById('joinScreen').classList.remove('hidden');
+            document.getElementById('joinScreen').classList.add('flex');
+            document.getElementById('codeInput').focus();
+        });
+        
+        document.getElementById('connectBtn').addEventListener('click', () => {
+            const code = document.getElementById('codeInput').value.toUpperCase();
+            if (code.length >= 4) {
+                setupClient(code);
+            }
+        });
+        
+        document.getElementById('codeInput').addEventListener('keydown', (e) => {
+            if (e.code === 'Enter') {
+                const code = document.getElementById('codeInput').value.toUpperCase();
+                if (code.length >= 4) {
+                    setupClient(code);
+                }
+            }
+        });
+        
+        document.getElementById('backFromHost').addEventListener('click', () => {
+            if (peer) peer.destroy();
+            document.getElementById('hostScreen').classList.add('hidden');
+            document.getElementById('hostScreen').classList.remove('flex');
+            document.getElementById('modeSelect').classList.remove('hidden');
+        });
+        
+        document.getElementById('backFromJoin').addEventListener('click', () => {
+            if (peer) peer.destroy();
+            document.getElementById('joinScreen').classList.add('hidden');
+            document.getElementById('joinScreen').classList.remove('flex');
+            document.getElementById('modeSelect').classList.remove('hidden');
+            document.getElementById('joinStatus').textContent = '';
+        });
+        
+        document.getElementById('restartBtn').addEventListener('click', () => {
+            if (isMultiplayer) {
+                sendEvent({type: 'startGame'});
+                startMultiplayerGame();
+            } else if (isDualMode) {
+                startDualMode();
+            } else {
+                startGame();
+            }
+        });
+        
+        // Initialize
+        ship = new Ship();
+        gameLoop();
+    </script>
+</body>
+</html>

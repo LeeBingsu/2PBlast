@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Invaders - Multiplayer</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(to bottom, #0a0a0a, #1a1a2e);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        .crt-effect {
+            animation: flicker 0.15s infinite;
+        }
+        @keyframes flicker {
+            0% { opacity: 0.97; }
+            50% { opacity: 1; }
+            100% { opacity: 0.98; }
+        }
+        .glow-text {
+            text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00, 0 0 30px #00ff00;
+        }
+        .glow-blue {
+            text-shadow: 0 0 10px #00bfff, 0 0 20px #00bfff, 0 0 30px #00bfff;
+        }
+        #gameCanvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+    <div class="text-center mb-4">
+        <h1 class="text-4xl font-bold text-green-400 glow-text mb-2 font-mono">SPACE INVADERS</h1>
+        <div id="gameInfo" class="flex gap-6 justify-center text-green-300 font-mono text-lg flex-wrap">
+            <span>SCORE: <span id="score" class="text-yellow-400">0</span></span>
+            <span>WAVE: <span id="wave" class="text-cyan-400">1</span></span>
+            <span id="p1LivesDisplay">P1: <span id="p1Lives" class="text-green-400">3</span>❤</span>
+            <span id="p2LivesDisplay" class="hidden">P2: <span id="p2Lives" class="text-blue-400">3</span>❤</span>
+            <span>HIGH: <span id="highScore" class="text-purple-400">0</span></span>
+        </div>
+        <div id="connectionStatus" class="text-sm font-mono mt-1 hidden"></div>
+    </div>
+    
+    <canvas id="gameCanvas" class="border-4 border-green-500 rounded-lg shadow-2xl crt-effect" width="800" height="600"></canvas>
+    
+    <!-- Main Menu Screen -->
+    <div id="menuScreen" class="absolute inset-0 flex items-center justify-center bg-black/90 z-10">
+        <div class="text-center">
+            <h2 class="text-5xl font-bold text-green-400 glow-text mb-8 font-mono">SPACE INVADERS</h2>
+            <div class="space-y-4">
+                <button id="singlePlayerBtn" class="w-72 px-8 py-4 bg-green-600 hover:bg-green-500 text-white font-bold text-xl rounded-lg font-mono transition-all hover:scale-105 block mx-auto">
+                    👤 SINGLE PLAYER
+                </button>
+                <button id="localCoopBtn" class="w-72 px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xl rounded-lg font-mono transition-all hover:scale-105 block mx-auto">
+                    👥 LOCAL CO-OP
+                </button>
+                <button id="onlineHostBtn" class="w-72 px-8 py-4 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xl rounded-lg font-mono transition-all hover:scale-105 block mx-auto">
+                    🌐 HOST ONLINE
+                </button>
+                <button id="onlineJoinBtn" class="w-72 px-8 py-4 bg-orange-600 hover:bg-orange-500 text-white font-bold text-xl rounded-lg font-mono transition-all hover:scale-105 block mx-auto">
+                    🔗 JOIN ONLINE
+                </button>
+            </div>
+            <div class="text-green-300 font-mono mt-8 space-y-1 text-sm">
+                <p class="text-green-400">─── CONTROLS ───</p>
+                <p>P1: ← → or A/D + SPACE</p>
+                <p>P2: IJKL + U (Local Co-op)</p>
+                <p>P to pause</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Online Host Screen -->
+    <div id="hostScreen" class="absolute inset-0 hidden items-center justify-center bg-black/90 z-10">
+        <div class="text-center">
+            <h2 class="text-4xl font-bold text-purple-400 glow-text mb-6 font-mono">HOST GAME</h2>
+            <div id="hostWaiting" class="mb-6">
+                <p class="text-green-300 font-mono mb-4">Your Room Code:</p>
+                <div id="roomCode" class="text-4xl font-bold text-yellow-400 font-mono mb-4 tracking-widest pulse">
+                    Generating...
+                </div>
+                <p class="text-gray-400 font-mono text-sm mb-4">Share this code with your friend</p>
+                <button id="copyCodeBtn" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded font-mono text-sm mb-4">
+                    📋 Copy Code
+                </button>
+                <p class="text-cyan-400 font-mono pulse">Waiting for player to join...</p>
+            </div>
+            <button id="hostBackBtn" class="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg font-mono transition-all">
+                ← BACK
+            </button>
+        </div>
+    </div>
+    
+    <!-- Online Join Screen -->
+    <div id="joinScreen" class="absolute inset-0 hidden items-center justify-center bg-black/90 z-10">
+        <div class="text-center">
+            <h2 class="text-4xl font-bold text-orange-400 glow-text mb-6 font-mono">JOIN GAME</h2>
+            <div class="mb-6">
+                <p class="text-green-300 font-mono mb-4">Enter Room Code:</p>
+                <input type="text" id="joinCodeInput" maxlength="6" 
+                    class="w-48 text-center text-3xl font-bold font-mono bg-gray-800 text-yellow-400 border-2 border-yellow-500 rounded-lg p-3 uppercase tracking-widest"
+                    placeholder="______">
+                <p id="joinError" class="text-red-400 font-mono text-sm mt-2 hidden">Connection failed. Try again.</p>
+            </div>
+            <div class="space-x-4">
+                <button id="joinBackBtn" class="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg font-mono transition-all">
+                    ← BACK
+                </button>
+                <button id="joinConnectBtn" class="px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg font-mono transition-all">
+                    CONNECT →
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Game Over Screen -->
+    <div id="gameOverScreen" class="absolute inset-0 hidden items-center justify-center bg-black/80 z-10">
+        <div class="text-center">
+            <h2 class="text-5xl font-bold text-red-500 glow-text mb-4 font-mono">GAME OVER</h2>
+            <p class="text-2xl text-yellow-400 font-mono mb-2">Final Score: <span id="finalScore">0</span></p>
+            <p class="text-xl text-cyan-400 font-mono mb-8">Wave Reached: <span id="finalWave">1</span></p>
+            <button id="restartBtn" class="px-8 py-4 bg-green-600 hover:bg-green-500 text-white font-bold text-2xl rounded-lg font-mono transition-all hover:scale-110 mr-4">
+                PLAY AGAIN
+            </button>
+            <button id="menuBtn" class="px-8 py-4 bg-gray-600 hover:bg-gray-500 text-white font-bold text-2xl rounded-lg font-mono transition-all hover:scale-110">
+                MENU
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // AUDIO SYSTEM
+        // ============================================
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+        
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+        }
+        
+        function playSound(type) {
+            if (!audioCtx) return;
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            switch(type) {
+                case 'shoot':
+                    oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.1);
+                    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.1);
+                    break;
+                case 'shoot2':
+                    oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.1);
+                    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.1);
+                    break;
+                case 'explosion':
+                    oscillator.type = 'sawtooth';
+                    oscillator.frequency.setValueAtTime(100, audioCtx.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.3);
+                    gainNode.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.3);
+                    break;
+                case 'ufo':
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(400, audioCtx.currentTime);
+                    oscillator.frequency.setValueAtTime(500, audioCtx.currentTime + 0.1);
+                    oscillator.frequency.setValueAtTime(400, audioCtx.currentTime + 0.2);
+                    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.3);
+                    break;
+                case 'playerHit':
+                    oscillator.type = 'square';
+                    oscillator.frequency.setValueAtTime(200, audioCtx.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.5);
+                    gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.5);
+                    break;
+                case 'waveComplete':
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(523, audioCtx.currentTime);
+                    oscillator.frequency.setValueAtTime(659, audioCtx.currentTime + 0.15);
+                    oscillator.frequency.setValueAtTime(784, audioCtx.currentTime + 0.3);
+                    oscillator.frequency.setValueAtTime(1047, audioCtx.currentTime + 0.45);
+                    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.6);
+                    break;
+                case 'invaderMove':
+                    oscillator.type = 'square';
+                    oscillator.frequency.setValueAtTime(80 + Math.random() * 40, audioCtx.currentTime);
+                    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.05);
+                    break;
+                case 'connected':
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
+                    oscillator.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1);
+                    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.2);
+                    break;
+            }
+        }
+
+        // ============================================
+        // CANVAS & GAME STATE
+        // ============================================
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Game modes
+        const MODES = {
+            SINGLE: 'single',
+            LOCAL_COOP: 'local_coop',
+            ONLINE_HOST: 'online_host',
+            ONLINE_CLIENT: 'online_client'
+        };
+        
+        let gameMode = MODES.SINGLE;
+        let gameRunning = false;
+        let gamePaused = false;
+        let score = 0;
+        let wave = 1;
+        let highScore = localStorage.getItem('spaceInvadersHighScore') || 0;
+        
+        document.getElementById('highScore').textContent = highScore;
+        
+        // ============================================
+        // PLAYERS
+        // ============================================
+        const players = [
+            {
+                id: 1,
+                x: canvas.width / 2 - 100,
+                y: canvas.height - 60,
+                width: 50,
+                height: 30,
+                speed: 7,
+                color: '#00ff00',
+                lives: 3,
+                canShoot: true,
+                active: true,
+                isLocal: true
+            },
+            {
+                id: 2,
+                x: canvas.width / 2 + 50,
+                y: canvas.height - 60,
+                width: 50,
+                height: 30,
+                speed: 7,
+                color: '#00bfff',
+                lives: 3,
+                canShoot: true,
+                active: false,
+                isLocal: true
+            }
+        ];
+        
+        // Bullets
+        let playerBullets = [];
+        let enemyBullets = [];
+        const bulletSpeed = 8;
+        const shootCooldown = 250;
+        
+        // Invaders
+        let invaders = [];
+        let invaderDirection = 1;
+        let invaderDropAmount = 20;
+        let baseInvaderSpeed = 0.5;
+        let invaderMoveTimer = 0;
+        let invaderMoveInterval = 1000;
+        
+        // UFO
+        let ufo = null;
+        let ufoTimer = 0;
+        let ufoInterval = 15000;
+        
+        // Shields
+        let shields = [];
+        
+        // Explosions
+        let explosions = [];
+        let floatingTexts = [];
+        
+        // Controls
+        const keys = {};
+        
+        // ============================================
+        // NETWORKING (PeerJS)
+        // ============================================
+        let peer = null;
+        let connection = null;
+        let isHost = false;
+        let roomCode = '';
+        
+        function generateRoomCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for (let i = 0; i < 6; i++) {
+                code += chars[Math.floor(Math.random() * chars.length)];
+            }
+            return code;
+        }
+        
+        function initPeer(id = null) {
+            return new Promise((resolve, reject) => {
+                peer = new Peer(id, {
+                    debug: 0
+                });
+                
+                peer.on('open', (id) => {
+                    console.log('Peer ID:', id);
+                    resolve(id);
+                });
+                
+                peer.on('error', (err) => {
+                    console.error('Peer error:', err);
+                    reject(err);
+                });
+            });
+        }
+        
+        function hostGame() {
+            roomCode = generateRoomCode();
+            document.getElementById('roomCode').textContent = roomCode;
+            
+            initPeer('spaceinvaders-' + roomCode).then(() => {
+                isHost = true;
+                
+                peer.on('connection', (conn) => {
+                    connection = conn;
+                    setupConnection();
+                });
+            }).catch(err => {
+                document.getElementById('roomCode').textContent = 'Error - Try Again';
+            });
+        }
+        
+        function joinGame(code) {
+            initPeer().then(() => {
+                isHost = false;
+                connection = peer.connect('spaceinvaders-' + code.toUpperCase());
+                
+                connection.on('open', () => {
+                    setupConnection();
+                });
+                
+                connection.on('error', (err) => {
+                    document.getElementById('joinError').classList.remove('hidden');
+                });
+            }).catch(err => {
+                document.getElementById('joinError').classList.remove('hidden');
+            });
+        }
+        
+        function setupConnection() {
+            playSound('connected');
+            updateConnectionStatus('Connected!', 'text-green-400');
+            
+            connection.on('data', (data) => {
+                handleNetworkData(data);
+            });
+            
+            connection.on('close', () => {
+                updateConnectionStatus('Disconnected', 'text-red-400');
+                if (gameRunning) {
+                    gamePaused = true;
+                }
+            });
+            
+            if (isHost) {
+                // Host starts the game
+                setTimeout(() => {
+                    startGame(MODES.ONLINE_HOST);
+                }, 500);
+            }
+        }
+        
+        function handleNetworkData(data) {
+            switch(data.type) {
+                case 'gameState':
+                    // Client receives full game state from host
+                    if (!isHost) {
+                        invaders = data.invaders;
+                        shields = data.shields;
+                        enemyBullets = data.enemyBullets;
+                        playerBullets = data.playerBullets;
+                        players[0].x = data.p1x;
+                        players[0].lives = data.p1Lives;
+                        players[0].active = data.p1Active;
+                        ufo = data.ufo;
+                        score = data.score;
+                        wave = data.wave;
+                        updateUI();
+                    }
+                    break;
+                case 'playerInput':
+                    // Host receives client input
+                    if (isHost) {
+                        players[1].x = data.x;
+                        if (data.shoot) {
+                            shootBullet(players[1]);
+                        }
+                    }
+                    break;
+                case 'startGame':
+                    startGame(MODES.ONLINE_CLIENT);
+                    break;
+                case 'explosion':
+                    createExplosion(data.x, data.y, data.color);
+                    playSound('explosion');
+                    break;
+                case 'sound':
+                    playSound(data.sound);
+                    break;
+                case 'gameOver':
+                    gameOver();
+                    break;
+            }
+        }
+        
+        function sendData(data) {
+            if (connection && connection.open) {
+                connection.send(data);
+            }
+        }
+        
+        function updateConnectionStatus(text, colorClass) {
+            const status = document.getElementById('connectionStatus');
+            status.textContent = text;
+            status.className = `text-sm font-mono mt-1 ${colorClass}`;
+            status.classList.remove('hidden');
+        }
+        
+        // ============================================
+        // INVADER TYPES
+        // ============================================
+        const invaderTypes = [
+            { points: 30, color: '#ff0080', pattern: 'squid' },
+            { points: 20, color: '#00ffff', pattern: 'crab' },
+            { points: 10, color: '#ffff00', pattern: 'octopus' }
+        ];
+        
+        function drawInvader(x, y, width, height, type, frame) {
+            ctx.fillStyle = type.color;
+            const w = width / 8;
+            const h = height / 8;
+            
+            const patterns = {
+                squid: [
+                    [[0,0,0,1,1,0,0,0],[0,0,1,1,1,1,0,0],[0,1,1,1,1,1,1,0],[1,1,0,1,1,0,1,1],[1,1,1,1,1,1,1,1],[0,0,1,0,0,1,0,0],[0,1,0,1,1,0,1,0],[1,0,1,0,0,1,0,1]],
+                    [[0,0,0,1,1,0,0,0],[0,0,1,1,1,1,0,0],[0,1,1,1,1,1,1,0],[1,1,0,1,1,0,1,1],[1,1,1,1,1,1,1,1],[0,1,0,1,1,0,1,0],[1,0,0,0,0,0,0,1],[0,1,0,0,0,0,1,0]]
+                ],
+                crab: [
+                    [[0,0,1,0,0,0,1,0],[0,0,0,1,0,1,0,0],[0,0,1,1,1,1,1,0],[0,1,1,0,1,0,1,1],[1,1,1,1,1,1,1,1],[1,0,1,1,1,1,0,1],[1,0,1,0,0,1,0,1],[0,0,0,1,1,0,0,0]],
+                    [[0,0,1,0,0,0,1,0],[1,0,0,1,0,1,0,1],[1,0,1,1,1,1,1,1],[1,1,1,0,1,0,1,1],[1,1,1,1,1,1,1,1],[0,0,1,1,1,1,0,0],[0,1,0,0,0,0,1,0],[1,0,0,0,0,0,0,1]]
+                ],
+                octopus: [
+                    [[0,0,0,1,1,0,0,0],[0,1,1,1,1,1,1,0],[1,1,1,1,1,1,1,1],[1,1,0,1,1,0,1,1],[1,1,1,1,1,1,1,1],[0,0,1,0,0,1,0,0],[0,1,0,1,1,0,1,0],[1,0,1,0,0,1,0,1]],
+                    [[0,0,0,1,1,0,0,0],[0,1,1,1,1,1,1,0],[1,1,1,1,1,1,1,1],[1,1,0,1,1,0,1,1],[1,1,1,1,1,1,1,1],[0,0,1,0,0,1,0,0],[0,1,0,1,1,0,1,0],[0,1,0,0,0,0,1,0]]
+                ]
+            };
+            
+            const pattern = patterns[type.pattern][frame % 2];
+            for (let row = 0; row < pattern.length; row++) {
+                for (let col = 0; col < pattern[row].length; col++) {
+                    if (pattern[row][col]) {
+                        ctx.fillRect(x + col * w, y + row * h, w, h);
+                    }
+                }
+            }
+        }
+        
+        function createInvaders() {
+            invaders = [];
+            const rows = 5;
+            const cols = 11;
+            const invaderWidth = 40;
+            const invaderHeight = 30;
+            const padding = 15;
+            const startX = (canvas.width - (cols * (invaderWidth + padding))) / 2;
+            const startY = 80;
+            
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const typeIndex = row < 1 ? 0 : row < 3 ? 1 : 2;
+                    invaders.push({
+                        x: startX + col * (invaderWidth + padding),
+                        y: startY + row * (invaderHeight + padding),
+                        width: invaderWidth,
+                        height: invaderHeight,
+                        type: invaderTypes[typeIndex],
+                        alive: true,
+                        frame: 0
+                    });
+                }
+            }
+            
+            baseInvaderSpeed = 0.5 + (wave - 1) * 0.2;
+            invaderMoveInterval = Math.max(200, 1000 - (wave - 1) * 100);
+        }
+        
+        function createShields() {
+            shields = [];
+            const shieldWidth = 80;
+            const shieldHeight = 60;
+            const shieldCount = 4;
+            const spacing = (canvas.width - shieldCount * shieldWidth) / (shieldCount + 1);
+            
+            for (let i = 0; i < shieldCount; i++) {
+                const shieldX = spacing + i * (shieldWidth + spacing);
+                const shieldY = canvas.height - 150;
+                
+                const blockSize = 5;
+                for (let row = 0; row < shieldHeight / blockSize; row++) {
+                    for (let col = 0; col < shieldWidth / blockSize; col++) {
+                        const relX = col * blockSize;
+                        const relY = row * blockSize;
+                        const centerX = shieldWidth / 2;
+                        
+                        if (relY > shieldHeight * 0.6 && relX > shieldWidth * 0.25 && relX < shieldWidth * 0.75) continue;
+                        if (relY < shieldHeight * 0.3) {
+                            const distFromCenter = Math.abs(relX + blockSize/2 - centerX);
+                            if (distFromCenter > shieldWidth * 0.4 - relY * 0.5) continue;
+                        }
+                        
+                        shields.push({
+                            x: shieldX + relX,
+                            y: shieldY + relY,
+                            width: blockSize,
+                            height: blockSize,
+                            health: 3
+                        });
+                    }
+                }
+            }
+        }
+        
+        // ============================================
+        // DRAWING FUNCTIONS
+        // ============================================
+        function drawPlayer(player) {
+            if (!player.active || player.lives <= 0) return;
+            
+            ctx.fillStyle = player.color;
+            ctx.fillRect(player.x + 5, player.y + 10, player.width - 10, player.height - 10);
+            ctx.fillRect(player.x, player.y + 20, player.width, player.height - 20);
+            ctx.fillRect(player.x + player.width/2 - 3, player.y, 6, 15);
+            
+            // Player number indicator
+            ctx.fillStyle = player.id === 1 ? '#00cc00' : '#0099cc';
+            ctx.fillRect(player.x + 10, player.y + 15, 8, 5);
+            ctx.fillRect(player.x + player.width - 18, player.y + 15, 8, 5);
+            
+            // Player label
+            ctx.fillStyle = player.color;
+            ctx.font = 'bold 10px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('P' + player.id, player.x + player.width/2, player.y - 5);
+            ctx.textAlign = 'left';
+        }
+        
+        function drawBullets() {
+            playerBullets.forEach(bullet => {
+                ctx.fillStyle = bullet.color || '#ffffff';
+                ctx.fillRect(bullet.x, bullet.y, 4, 15);
+                ctx.fillStyle = `${bullet.color || '#ffffff'}80`;
+                ctx.fillRect(bullet.x - 2, bullet.y, 8, 15);
+            });
+            
+            ctx.fillStyle = '#ff4444';
+            enemyBullets.forEach(bullet => {
+                ctx.fillRect(bullet.x, bullet.y, 4, 6);
+                ctx.fillRect(bullet.x + 4, bullet.y + 6, 4, 6);
+                ctx.fillRect(bullet.x, bullet.y + 12, 4, 6);
+            });
+        }
+        
+        function drawInvaders() {
+            invaders.forEach(invader => {
+                if (invader.alive) {
+                    drawInvader(invader.x, invader.y, invader.width, invader.height, invader.type, invader.frame);
+                }
+            });
+        }
+        
+        function drawShields() {
+            shields.forEach(block => {
+                const alpha = block.health / 3;
+                ctx.fillStyle = `rgba(0, 255, 100, ${alpha})`;
+                ctx.fillRect(block.x, block.y, block.width, block.height);
+            });
+        }
+        
+        function drawUFO() {
+            if (ufo) {
+                ctx.fillStyle = '#ff0000';
+                ctx.beginPath();
+                ctx.ellipse(ufo.x + 30, ufo.y + 15, 30, 12, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#ff6666';
+                ctx.beginPath();
+                ctx.ellipse(ufo.x + 30, ufo.y + 8, 15, 10, 0, Math.PI, 0);
+                ctx.fill();
+                ctx.fillStyle = '#ffff00';
+                for (let i = 0; i < 5; i++) {
+                    ctx.beginPath();
+                    ctx.arc(ufo.x + 10 + i * 10, ufo.y + 18, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+        
+        function drawExplosions() {
+            explosions = explosions.filter(exp => {
+                exp.life--;
+                if (exp.life <= 0) return false;
+                
+                ctx.fillStyle = exp.color || '#ffff00';
+                exp.particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    const size = (exp.life / exp.maxLife) * p.size;
+                    ctx.fillRect(p.x, p.y, size, size);
+                });
+                return true;
+            });
+        }
+        
+        function drawFloatingTexts() {
+            ctx.font = 'bold 20px monospace';
+            floatingTexts = floatingTexts.filter(ft => {
+                ft.y -= 1;
+                ft.life--;
+                ctx.globalAlpha = ft.life / 60;
+                ctx.fillStyle = ft.color || '#ffff00';
+                ctx.fillText(ft.text, ft.x, ft.y);
+                ctx.globalAlpha = 1;
+                return ft.life > 0;
+            });
+        }
+        
+        function drawStars() {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            for (let i = 0; i < 50; i++) {
+                const x = (i * 73) % canvas.width;
+                const y = (i * 137) % canvas.height;
+                ctx.fillRect(x, y, 1, 1);
+            }
+        }
+        
+        function createExplosion(x, y, color) {
+            const particles = [];
+            for (let i = 0; i < 12; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.5) * 6,
+                    size: Math.random() * 6 + 2
+                });
+            }
+            explosions.push({ particles, life: 20, maxLife: 20, color });
+        }
+        
+        function showFloatingText(x, y, text, color) {
+            floatingTexts.push({ x, y, text: String(text), life: 60, color });
+        }
+        
+        // ============================================
+        // UPDATE FUNCTIONS
+        // ============================================
+        function updatePlayers() {
+            // Player 1 controls (always local in single/local coop, local for host in online)
+            if (players[0].active && players[0].lives > 0 && players[0].isLocal) {
+                if (keys['ArrowLeft'] || keys['KeyA']) {
+                    players[0].x = Math.max(0, players[0].x - players[0].speed);
+                }
+                if (keys['ArrowRight'] || keys['KeyD']) {
+                    players[0].x = Math.min(canvas.width - players[0].width, players[0].x + players[0].speed);
+                }
+            }
+            
+            // Player 2 controls
+            if (players[1].active && players[1].lives > 0 && players[1].isLocal) {
+                // Local co-op: IJKL controls
+                if (gameMode === MODES.LOCAL_COOP) {
+                    if (keys['KeyJ']) {
+                        players[1].x = Math.max(0, players[1].x - players[1].speed);
+                    }
+                    if (keys['KeyL']) {
+                        players[1].x = Math.min(canvas.width - players[1].width, players[1].x + players[1].speed);
+                    }
+                }
+                // Online client: Arrow/WASD controls
+                else if (gameMode === MODES.ONLINE_CLIENT) {
+                    if (keys['ArrowLeft'] || keys['KeyA']) {
+                        players[1].x = Math.max(0, players[1].x - players[1].speed);
+                    }
+                    if (keys['ArrowRight'] || keys['KeyD']) {
+                        players[1].x = Math.min(canvas.width - players[1].width, players[1].x + players[1].speed);
+                    }
+                }
+            }
+            
+            // Send client position to host
+            if (gameMode === MODES.ONLINE_CLIENT && players[1].isLocal) {
+                sendData({
+                    type: 'playerInput',
+                    x: players[1].x
+                });
+            }
+        }
+        
+        function shootBullet(player) {
+            if (!player.canShoot || !player.active || player.lives <= 0 || gamePaused) return;
+            
+            playerBullets.push({
+                x: player.x + player.width / 2 - 2,
+                y: player.y,
+                playerId: player.id,
+                color: player.color
+            });
+            
+            playSound(player.id === 1 ? 'shoot' : 'shoot2');
+            
+            player.canShoot = false;
+            setTimeout(() => player.canShoot = true, shootCooldown);
+        }
+        
+        function updateBullets() {
+            playerBullets = playerBullets.filter(bullet => {
+                bullet.y -= bulletSpeed;
+                return bullet.y > -20;
+            });
+            
+            enemyBullets = enemyBullets.filter(bullet => {
+                bullet.y += bulletSpeed * 0.6;
+                return bullet.y < canvas.height;
+            });
+        }
+        
+        function updateInvaders(deltaTime) {
+            if (gameMode === MODES.ONLINE_CLIENT) return; // Client doesn't update invaders
+            
+            invaderMoveTimer += deltaTime;
+            
+            const aliveInvaders = invaders.filter(i => i.alive);
+            if (aliveInvaders.length === 0) {
+                nextWave();
+                return;
+            }
+            
+            const speedMultiplier = 1 + (55 - aliveInvaders.length) * 0.03;
+            const currentInterval = invaderMoveInterval / speedMultiplier;
+            
+            if (invaderMoveTimer >= currentInterval) {
+                invaderMoveTimer = 0;
+                playSound('invaderMove');
+                
+                let shouldDrop = false;
+                let minX = canvas.width, maxX = 0;
+                
+                aliveInvaders.forEach(inv => {
+                    minX = Math.min(minX, inv.x);
+                    maxX = Math.max(maxX, inv.x + inv.width);
+                    inv.frame++;
+                });
+                
+                if ((invaderDirection === 1 && maxX >= canvas.width - 20) ||
+                    (invaderDirection === -1 && minX <= 20)) {
+                    shouldDrop = true;
+                    invaderDirection *= -1;
+                }
+                
+                aliveInvaders.forEach(inv => {
+                    if (shouldDrop) {
+                        inv.y += invaderDropAmount;
+                    } else {
+                        inv.x += invaderDirection * (baseInvaderSpeed * 15);
+                    }
+                    
+                    // Check if invaders reached players
+                    players.forEach(p => {
+                        if (p.active && p.lives > 0 && inv.y + inv.height >= p.y) {
+                            gameOver();
+                        }
+                    });
+                });
+            }
+            
+            // Random shooting
+            if (Math.random() < 0.02 * (1 + wave * 0.1) && aliveInvaders.length > 0) {
+                const columns = {};
+                aliveInvaders.forEach(inv => {
+                    const col = Math.floor(inv.x / 50);
+                    if (!columns[col] || inv.y > columns[col].y) {
+                        columns[col] = inv;
+                    }
+                });
+                const bottomInvaders = Object.values(columns);
+                const shooter = bottomInvaders[Math.floor(Math.random() * bottomInvaders.length)];
+                enemyBullets.push({
+                    x: shooter.x + shooter.width / 2 - 2,
+                    y: shooter.y + shooter.height
+                });
+            }
+        }
+        
+        function updateUFO(deltaTime) {
+            if (gameMode === MODES.ONLINE_CLIENT) return;
+            
+            ufoTimer += deltaTime;
+            
+            if (!ufo && ufoTimer >= ufoInterval) {
+                ufoTimer = 0;
+                ufo = {
+                    x: -60,
+                    y: 30,
+                    width: 60,
+                    height: 25,
+                    speed: 3,
+                    points: [50, 100, 150, 200, 300][Math.floor(Math.random() * 5)]
+                };
+                playSound('ufo');
+            }
+            
+            if (ufo) {
+                ufo.x += ufo.speed;
+                if (ufo.x > canvas.width) {
+                    ufo = null;
+                } else if (Math.random() < 0.05) {
+                    playSound('ufo');
+                }
+            }
+        }
+        
+        function checkCollisions() {
+            if (gameMode === MODES.ONLINE_CLIENT) return;
+            
+            // Player bullets vs invaders
+            playerBullets.forEach((bullet, bulletIndex) => {
+                invaders.forEach(invader => {
+                    if (invader.alive && 
+                        bullet.x < invader.x + invader.width &&
+                        bullet.x + 4 > invader.x &&
+                        bullet.y < invader.y + invader.height &&
+                        bullet.y + 15 > invader.y) {
+                        invader.alive = false;
+                        playerBullets.splice(bulletIndex, 1);
+                        score += invader.type.points * wave;
+                        updateUI();
+                        createExplosion(invader.x + invader.width/2, invader.y + invader.height/2, invader.type.color);
+                        playSound('explosion');
+                        
+                        if (gameMode === MODES.ONLINE_HOST) {
+                            sendData({ type: 'explosion', x: invader.x + invader.width/2, y: invader.y + invader.height/2, color: invader.type.color });
+                        }
+                    }
+                });
+                
+                // Player bullets vs UFO
+                if (ufo && 
+                    bullet.x < ufo.x + ufo.width &&
+                    bullet.x + 4 > ufo.x &&
+                    bullet.y < ufo.y + ufo.height &&
+                    bullet.y + 15 > ufo.y) {
+                    score += ufo.points * wave;
+                    updateUI();
+                    createExplosion(ufo.x + ufo.width/2, ufo.y + ufo.height/2, '#ff0000');
+                    showFloatingText(ufo.x + 30, ufo.y, ufo.points * wave);
+                    playSound('explosion');
+                    
+                    if (gameMode === MODES.ONLINE_HOST) {
+                        sendData({ type: 'explosion', x: ufo.x + ufo.width/2, y: ufo.y + ufo.height/2, color: '#ff0000' });
+                    }
+                    
+                    ufo = null;
+                    playerBullets.splice(bulletIndex, 1);
+                }
+                
+                // Player bullets vs shields
+                shields.forEach((block, blockIndex) => {
+                    if (bullet.x < block.x + block.width &&
+                        bullet.x + 4 > block.x &&
+                        bullet.y < block.y + block.height &&
+                        bullet.y + 15 > block.y) {
+                        block.health--;
+                        if (block.health <= 0) {
+                            shields.splice(blockIndex, 1);
+                        }
+                        playerBullets.splice(bulletIndex, 1);
+                    }
+                });
+            });
+            
+            // Enemy bullets vs players
+            enemyBullets.forEach((bullet, bulletIndex) => {
+                players.forEach(player => {
+                    if (player.active && player.lives > 0 &&
+                        bullet.x < player.x + player.width &&
+                        bullet.x + 4 > player.x &&
+                        bullet.y < player.y + player.height &&
+                        bullet.y + 18 > player.y) {
+                        enemyBullets.splice(bulletIndex, 1);
+                        playerHit(player);
+                    }
+                });
+                
+                // Enemy bullets vs shields
+                shields.forEach((block, blockIndex) => {
+                    if (bullet.x < block.x + block.width &&
+                        bullet.x + 4 > block.x &&
+                        bullet.y < block.y + block.height &&
+                        bullet.y + 18 > block.y) {
+                        block.health--;
+                        if (block.health <= 0) {
+                            shields.splice(blockIndex, 1);
+                        }
+                        enemyBullets.splice(bulletIndex, 1);
+                    }
+                });
+            });
+            
+            // Invaders vs shields
+            invaders.forEach(invader => {
+                if (invader.alive) {
+                    shields = shields.filter(block => {
+                        return !(invader.x < block.x + block.width &&
+                                invader.x + invader.width > block.x &&
+                                invader.y < block.y + block.height &&
+                                invader.y + invader.height > block.y);
+                    });
+                }
+            });
+        }
+        
+        function playerHit(player) {
+            player.lives--;
+            updateUI();
+            createExplosion(player.x + player.width/2, player.y + player.height/2, player.color);
+            playSound('playerHit');
+            
+            // Check if all players are dead
+            const allDead = players.filter(p => p.active).every(p => p.lives <= 0);
+            
+            if (allDead) {
+                gameOver();
+            } else {
+                // Reset player position
+                player.x = player.id === 1 ? canvas.width / 2 - 100 : canvas.width / 2 + 50;
+                enemyBullets = [];
+            }
+        }
+        
+        function nextWave() {
+            wave++;
+            updateUI();
+            playSound('waveComplete');
+            
+            setTimeout(() => {
+                createInvaders();
+                invaderDirection = 1;
+                invaderMoveTimer = 0;
+            }, 1500);
+        }
+        
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('wave').textContent = wave;
+            document.getElementById('p1Lives').textContent = players[0].lives;
+            document.getElementById('p2Lives').textContent = players[1].lives;
+            
+            if (score > highScore) {
+                highScore = score;
+                document.getElementById('highScore').textContent = highScore;
+                localStorage.setItem('spaceInvadersHighScore', highScore);
+            }
+        }
+        
+        // ============================================
+        // MAIN DRAW & GAME LOOP
+        // ============================================
+        function draw() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            drawStars();
+            drawShields();
+            
+            players.forEach(p => {
+                if (p.active) drawPlayer(p);
+            });
+            
+            drawInvaders();
+            drawBullets();
+            drawUFO();
+            drawExplosions();
+            drawFloatingTexts();
+            
+            ctx.fillStyle = '#00ff00';
+            ctx.fillRect(0, canvas.height - 20, canvas.width, 2);
+            
+            if (gamePaused) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#00ff00';
+                ctx.font = 'bold 48px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+                ctx.font = '24px monospace';
+                ctx.fillText('Press P to continue', canvas.width / 2, canvas.height / 2 + 40);
+                ctx.textAlign = 'left';
+            }
+        }
+        
+        let lastTime = 0;
+        
+        function gameLoop(timestamp) {
+            if (!gameRunning) return;
+            
+            const deltaTime = timestamp - lastTime;
+            lastTime = timestamp;
+            
+            if (!gamePaused) {
+                updatePlayers();
+                updateBullets();
+                updateInvaders(deltaTime);
+                updateUFO(deltaTime);
+                checkCollisions();
+                
+                // Host sends game state to client
+                if (gameMode === MODES.ONLINE_HOST && connection) {
+                    sendData({
+                        type: 'gameState',
+                        invaders: invaders,
+                        shields: shields,
+                        enemyBullets: enemyBullets,
+                        playerBullets: playerBullets,
+                        p1x: players[0].x,
+                        p1Lives: players[0].lives,
+                        p1Active: players[0].active,
+                        ufo: ufo,
+                        score: score,
+                        wave: wave
+                    });
+                }
+            }
+            
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // ============================================
+        // GAME CONTROL FUNCTIONS
+        // ============================================
+        function startGame(mode) {
+            initAudio();
+            gameMode = mode;
+            gameRunning = true;
+            gamePaused = false;
+            score = 0;
+            wave = 1;
+            playerBullets = [];
+            enemyBullets = [];
+            explosions = [];
+            floatingTexts = [];
+            ufo = null;
+            ufoTimer = 0;
+            invaderDirection = 1;
+            invaderMoveTimer = 0;
+            
+            // Reset players
+            players[0].x = canvas.width / 2 - 100;
+            players[0].lives = 3;
+            players[0].active = true;
+            players[0].canShoot = true;
+            players[0].isLocal = true;
+            
+            players[1].x = canvas.width / 2 + 50;
+            players[1].lives = 3;
+            players[1].canShoot = true;
+            
+            // Configure players based on mode
+            switch(mode) {
+                case MODES.SINGLE:
+                    players[0].x = canvas.width / 2 - 25;
+                    players[1].active = false;
+                    players[1].isLocal = false;
+                    document.getElementById('p2LivesDisplay').classList.add('hidden');
+                    break;
+                case MODES.LOCAL_COOP:
+                    players[1].active = true;
+                    players[1].isLocal = true;
+                    document.getElementById('p2LivesDisplay').classList.remove('hidden');
+                    break;
+                case MODES.ONLINE_HOST:
+                    players[1].active = true;
+                    players[1].isLocal = false;
+                    document.getElementById('p2LivesDisplay').classList.remove('hidden');
+                    sendData({ type: 'startGame' });
+                    break;
+                case MODES.ONLINE_CLIENT:
+                    players[0].isLocal = false;
+                    players[1].active = true;
+                    players[1].isLocal = true;
+                    document.getElementById('p2LivesDisplay').classList.remove('hidden');
+                    break;
+            }
+            
+            updateUI();
+            createInvaders();
+            createShields();
+            
+            // Hide all screens
+            document.getElementById('menuScreen').classList.add('hidden');
+            document.getElementById('hostScreen').classList.add('hidden');
+            document.getElementById('hostScreen').style.display = 'none';
+            document.getElementById('joinScreen').classList.add('hidden');
+            document.getElementById('joinScreen').style.display = 'none';
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            document.getElementById('gameOverScreen').style.display = 'none';
+            
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalWave').textContent = wave;
+            document.getElementById('gameOverScreen').classList.remove('hidden');
+            document.getElementById('gameOverScreen').style.display = 'flex';
+            
+            if (gameMode === MODES.ONLINE_HOST) {
+                sendData({ type: 'gameOver' });
+            }
+        }
+        
+        function returnToMenu() {
+            gameRunning = false;
+            
+            // Clean up peer connection
+            if (connection) {
+                connection.close();
+                connection = null;
+            }
+            if (peer) {
+                peer.destroy();
+                peer = null;
+            }
+            
+            document.getElementById('menuScreen').classList.remove('hidden');
+            document.getElementById('hostScreen').classList.add('hidden');
+            document.getElementById('hostScreen').style.display = 'none';
+            document.getElementById('joinScreen').classList.add('hidden');
+            document.getElementById('joinScreen').style.display = 'none';
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            document.getElementById('gameOverScreen').style.display = 'none';
+            document.getElementById('connectionStatus').classList.add('hidden');
+            
+            draw();
+        }
+        
+        // ============================================
+        // EVENT LISTENERS
+        // ============================================
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            
+            // Player 1 shoot (Space)
+            if (e.code === 'Space' && gameRunning && !gamePaused) {
+                e.preventDefault();
+                if (players[0].isLocal) {
+                    shootBullet(players[0]);
+                } else if (gameMode === MODES.ONLINE_CLIENT && players[1].isLocal) {
+                    shootBullet(players[1]);
+                    sendData({ type: 'playerInput', x: players[1].x, shoot: true });
+                }
+            }
+            
+            // Player 2 shoot (U for local co-op)
+            if (e.code === 'KeyU' && gameRunning && !gamePaused && gameMode === MODES.LOCAL_COOP) {
+                e.preventDefault();
+                shootBullet(players[1]);
+            }
+            
+            // Pause
+            if (e.code === 'KeyP' && gameRunning) {
+                gamePaused = !gamePaused;
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+        
+        // Menu buttons
+        document.getElementById('singlePlayerBtn').addEventListener('click', () => {
+            startGame(MODES.SINGLE);
+        });
+        
+        document.getElementById('localCoopBtn').addEventListener('click', () => {
+            startGame(MODES.LOCAL_COOP);
+        });
+        
+        document.getElementById('onlineHostBtn').addEventListener('click', () => {
+            document.getElementById('menuScreen').classList.add('hidden');
+            document.getElementById('hostScreen').classList.remove('hidden');
+            document.getElementById('hostScreen').style.display = 'flex';
+            hostGame();
+        });
+        
+        document.getElementById('onlineJoinBtn').addEventListener('click', () => {
+            document.getElementById('menuScreen').classList.add('hidden');
+            document.getElementById('joinScreen').classList.remove('hidden');
+            document.getElementById('joinScreen').style.display = 'flex';
+            document.getElementById('joinCodeInput').focus();
+        });
+        
+        // Host screen
+        document.getElementById('copyCodeBtn').addEventListener('click', () => {
+            navigator.clipboard.writeText(roomCode);
+            document.getElementById('copyCodeBtn').textContent = '✓ Copied!';
+            setTimeout(() => {
+                document.getElementById('copyCodeBtn').textContent = '📋 Copy Code';
+            }, 2000);
+        });
+        
+        document.getElementById('hostBackBtn').addEventListener('click', returnToMenu);
+        
+        // Join screen
+        document.getElementById('joinConnectBtn').addEventListener('click', () => {
+            const code = document.getElementById('joinCodeInput').value.trim();
+            if (code.length >= 4) {
+                document.getElementById('joinError').classList.add('hidden');
+                joinGame(code);
+            }
+        });
+        
+        document.getElementById('joinCodeInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('joinConnectBtn').click();
+            }
+        });
+        
+        document.getElementById('joinBackBtn').addEventListener('click', returnToMenu);
+        
+        // Game over screen
+        document.getElementById('restartBtn').addEventListener('click', () => {
+            startGame(gameMode);
+        });
+        
+        document.getElementById('menuBtn').addEventListener('click', returnToMenu);
+        
+        // Initial draw
+        draw();
+    </script>
+</body>
+</html>
