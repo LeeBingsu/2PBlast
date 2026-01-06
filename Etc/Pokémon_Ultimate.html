@@ -1,0 +1,1613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokémon Battle Arena Ultimate</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Press Start 2P', cursive; }
+        
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px) rotate(-2deg); } 75% { transform: translateX(5px) rotate(2deg); } }
+        @keyframes attack-right { 0% { transform: translateX(0); } 50% { transform: translateX(50px) scale(1.1); } 100% { transform: translateX(0); } }
+        @keyframes attack-left { 0% { transform: translateX(0); } 50% { transform: translateX(-50px) scale(1.1); } 100% { transform: translateX(0); } }
+        @keyframes damage { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(2) hue-rotate(180deg); } }
+        @keyframes critical-hit { 0% { transform: scale(1); } 25% { transform: scale(1.3); filter: brightness(2); } 50% { transform: scale(0.9); } 100% { transform: scale(1); } }
+        @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 20px rgba(255,215,0,0.5); } 50% { box-shadow: 0 0 40px rgba(255,215,0,0.9); } }
+        @keyframes level-up { 0% { transform: scale(1); } 50% { transform: scale(1.2); filter: brightness(1.5) drop-shadow(0 0 20px gold); } 100% { transform: scale(1); } }
+        @keyframes xp-gain { 0% { width: 0; } 100% { width: var(--target-width); } }
+        @keyframes unlock { 0% { transform: scale(0) rotate(-180deg); opacity: 0; } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+        @keyframes sparkle { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } }
+        
+        .pokemon-float { animation: float 3s ease-in-out infinite; }
+        .attack-anim-right { animation: attack-right 0.5s ease-in-out; }
+        .attack-anim-left { animation: attack-left 0.5s ease-in-out; }
+        .damage-anim { animation: damage 0.3s ease-in-out 3; }
+        .shake-anim { animation: shake 0.3s ease-in-out 3; }
+        .critical-anim { animation: critical-hit 0.6s ease-in-out; }
+        .pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+        .level-up-anim { animation: level-up 1s ease-in-out; }
+        .unlock-anim { animation: unlock 0.5s ease-out; }
+        .sparkle { animation: sparkle 1s ease-in-out infinite; }
+        
+        .hp-bar, .xp-bar { transition: width 0.5s ease-out; }
+        .pokemon-card:hover { transform: scale(1.05); transition: transform 0.2s; }
+        
+        .bg-pokemon-gradient { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); }
+        .glass-panel { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); }
+        
+        .pokeball-loader { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(to bottom, red 50%, white 50%); position: relative; animation: float 1s ease-in-out infinite; }
+        .pokeball-loader::before { content: ''; position: absolute; width: 100%; height: 4px; background: #333; top: 50%; transform: translateY(-50%); }
+        .pokeball-loader::after { content: ''; position: absolute; width: 16px; height: 16px; background: white; border: 4px solid #333; border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .locked-pokemon { filter: grayscale(100%) brightness(0.3); }
+        .tier-badge { position: absolute; top: -5px; right: -5px; font-size: 8px; }
+        
+        .online-status { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+        .online-status.connected { background: #4ade80; }
+        .online-status.disconnected { background: #ef4444; }
+        .online-status.connecting { background: #fbbf24; animation: sparkle 1s infinite; }
+    </style>
+</head>
+<body class="bg-pokemon-gradient min-h-screen text-white overflow-x-hidden">
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center">
+        <div class="pokeball-loader mb-8"></div>
+        <p class="text-yellow-400 text-xs">Loading Pokémon...</p>
+        <p id="loading-progress" class="text-gray-400 text-xs mt-2">0%</p>
+        <p id="loading-gen" class="text-gray-600 text-xs mt-1">Generation 1</p>
+    </div>
+
+    <!-- Main Menu -->
+    <div id="main-menu" class="hidden min-h-screen flex flex-col items-center justify-center p-4">
+        <div class="text-center mb-6">
+            <h1 class="text-2xl md:text-3xl text-yellow-400 mb-2 drop-shadow-lg">POKÉMON</h1>
+            <h2 class="text-lg md:text-xl text-red-500">BATTLE ARENA</h2>
+            <p class="text-xs text-gray-500 mt-1">Ultimate Edition</p>
+        </div>
+        
+        <!-- Player Level Display -->
+        <div class="glass-panel rounded-xl p-4 mb-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-xs text-gray-400">Trainer Level</span>
+                <span id="player-level-display" class="text-yellow-400 text-lg">1</span>
+            </div>
+            <div class="bg-gray-700 rounded-full h-4 mb-2">
+                <div id="xp-bar-display" class="xp-bar bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full" style="width:0%"></div>
+            </div>
+            <div class="flex justify-between text-xs text-gray-500">
+                <span id="xp-current">0 XP</span>
+                <span id="xp-needed">100 XP to next level</span>
+            </div>
+            <p id="unlocked-pokemon-count" class="text-center text-xs text-green-400 mt-2">0 Pokémon Unlocked</p>
+        </div>
+        
+        <div class="flex flex-col gap-3 w-full max-w-md">
+            <button onclick="startSinglePlayer()" class="glass-panel py-4 px-8 rounded-xl text-yellow-300 hover:bg-yellow-500/20 transition text-sm pulse-glow">
+                ⚔️ SINGLE PLAYER
+            </button>
+            <button onclick="startMultiplayer()" class="glass-panel py-4 px-8 rounded-xl text-blue-300 hover:bg-blue-500/20 transition text-sm">
+                👥 LOCAL MULTIPLAYER
+            </button>
+            <button onclick="showOnlineLobby()" class="glass-panel py-4 px-8 rounded-xl text-green-300 hover:bg-green-500/20 transition text-sm flex items-center justify-center gap-2">
+                🌐 ONLINE BATTLE
+                <span id="online-indicator" class="online-status disconnected"></span>
+            </button>
+            <button onclick="showPokedex()" class="glass-panel py-4 px-8 rounded-xl text-purple-300 hover:bg-purple-500/20 transition text-sm">
+                📖 POKÉDEX
+            </button>
+            <button onclick="showCollection()" class="glass-panel py-4 px-8 rounded-xl text-pink-300 hover:bg-pink-500/20 transition text-sm">
+                🎒 MY COLLECTION
+            </button>
+        </div>
+        
+        <div class="mt-6 text-xs text-gray-500 text-center">
+            <p id="save-status">Ready to battle!</p>
+            <p class="mt-1">Gen 1-8 • <span id="total-pokemon-count">0</span> Pokémon</p>
+        </div>
+    </div>
+
+    <!-- Team Selection Screen -->
+    <div id="team-select" class="hidden min-h-screen p-4">
+        <div class="max-w-6xl mx-auto">
+            <div class="flex justify-between items-center mb-4">
+                <button onclick="goToMenu()" class="text-yellow-400 text-xs">← BACK</button>
+                <h2 id="team-select-title" class="text-yellow-400 text-sm">SELECT YOUR TEAM</h2>
+                <span id="team-count" class="text-xs">0/3</span>
+            </div>
+            
+            <!-- AI Difficulty Indicator -->
+            <div id="ai-difficulty-display" class="glass-panel rounded-lg p-2 mb-4 text-center hidden">
+                <span class="text-xs text-gray-400">AI Difficulty: </span>
+                <span id="ai-level-text" class="text-yellow-400">Easy</span>
+                <span class="text-xs text-gray-500 ml-2">(Based on your level)</span>
+            </div>
+            
+            <div class="glass-panel rounded-xl p-4 mb-4">
+                <div class="flex gap-2 mb-4 flex-wrap">
+                    <button onclick="filterType('all')" class="px-3 py-1 bg-gray-700 rounded text-xs hover:bg-gray-600 filter-btn active">ALL</button>
+                    <button onclick="filterType('fire')" class="px-3 py-1 bg-orange-600 rounded text-xs filter-btn">🔥</button>
+                    <button onclick="filterType('water')" class="px-3 py-1 bg-blue-600 rounded text-xs filter-btn">💧</button>
+                    <button onclick="filterType('grass')" class="px-3 py-1 bg-green-600 rounded text-xs filter-btn">🌿</button>
+                    <button onclick="filterType('electric')" class="px-3 py-1 bg-yellow-500 rounded text-xs filter-btn">⚡</button>
+                    <button onclick="filterType('psychic')" class="px-3 py-1 bg-pink-600 rounded text-xs filter-btn">🔮</button>
+                    <button onclick="filterType('dragon')" class="px-3 py-1 bg-purple-600 rounded text-xs filter-btn">🐉</button>
+                    <button onclick="filterType('dark')" class="px-3 py-1 bg-gray-800 rounded text-xs filter-btn">🌑</button>
+                    <button onclick="filterType('steel')" class="px-3 py-1 bg-gray-500 rounded text-xs filter-btn">⚙️</button>
+                    <button onclick="filterType('fairy')" class="px-3 py-1 bg-pink-400 rounded text-xs filter-btn">✨</button>
+                    <button onclick="filterType('fighting')" class="px-3 py-1 bg-red-700 rounded text-xs filter-btn">👊</button>
+                    <button onclick="filterType('ghost')" class="px-3 py-1 bg-indigo-800 rounded text-xs filter-btn">👻</button>
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="pokemon-search" placeholder="Search Pokémon..." 
+                        class="flex-1 p-2 rounded bg-gray-800 text-white text-xs" oninput="searchPokemon()">
+                    <select id="gen-filter" onchange="filterGen()" class="p-2 rounded bg-gray-800 text-white text-xs">
+                        <option value="all">All Gens</option>
+                        <option value="1">Gen 1</option>
+                        <option value="2">Gen 2</option>
+                        <option value="3">Gen 3</option>
+                        <option value="4">Gen 4</option>
+                        <option value="5">Gen 5</option>
+                        <option value="6">Gen 6</option>
+                        <option value="7">Gen 7</option>
+                        <option value="8">Gen 8</option>
+                    </select>
+                    <select id="unlock-filter" onchange="filterUnlocked()" class="p-2 rounded bg-gray-800 text-white text-xs">
+                        <option value="unlocked">Unlocked</option>
+                        <option value="all">All</option>
+                        <option value="locked">Locked</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="glass-panel rounded-xl p-4 mb-4">
+                <p class="text-xs text-gray-400 mb-2">Your Team:</p>
+                <div id="selected-team" class="flex gap-4 min-h-20 flex-wrap justify-center"></div>
+            </div>
+            
+            <div id="pokemon-grid" class="grid grid-cols-5 md:grid-cols-8 lg:grid-cols-12 gap-2 max-h-72 overflow-y-auto scrollbar-hide"></div>
+            
+            <button id="start-battle-btn" onclick="confirmTeamSelection()" disabled
+                class="w-full mt-4 py-4 bg-gradient-to-r from-red-600 to-yellow-500 rounded-xl text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                START BATTLE
+            </button>
+        </div>
+    </div>
+
+    <!-- Battle Screen -->
+    <div id="battle-screen" class="hidden min-h-screen p-2 md:p-4">
+        <div class="max-w-4xl mx-auto">
+            <div id="online-battle-status" class="hidden glass-panel rounded-lg p-2 mb-2 flex justify-between items-center text-xs">
+                <span>VS: <span id="opponent-name" class="text-yellow-400">Opponent</span></span>
+                <span class="flex items-center gap-2"><span class="online-status connected"></span> Connected</span>
+            </div>
+            
+            <!-- Enemy Area -->
+            <div class="glass-panel rounded-xl p-4 mb-4">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <p id="enemy-name" class="text-red-400 text-xs md:text-sm mb-1">ENEMY</p>
+                        <div class="flex items-center gap-2">
+                            <span id="enemy-level" class="text-xs">Lv.50</span>
+                            <div class="flex-1 bg-gray-700 rounded-full h-3 max-w-48">
+                                <div id="enemy-hp-bar" class="hp-bar bg-gradient-to-r from-green-500 to-green-400 h-full rounded-full" style="width:100%"></div>
+                            </div>
+                            <span id="enemy-hp-text" class="text-xs">100/100</span>
+                        </div>
+                    </div>
+                    <div id="enemy-pokemon" class="pokemon-float">
+                        <img id="enemy-sprite" src="" alt="" class="w-24 h-24 md:w-32 md:h-32 pixelated">
+                    </div>
+                </div>
+            </div>
+            
+            <div id="battle-effects" class="relative h-12 flex items-center justify-center">
+                <p id="battle-message" class="text-yellow-300 text-xs text-center"></p>
+            </div>
+            
+            <!-- Player Area -->
+            <div class="glass-panel rounded-xl p-4 mb-4">
+                <div class="flex justify-between items-end">
+                    <div id="player-pokemon" class="pokemon-float">
+                        <img id="player-sprite" src="" alt="" class="w-28 h-28 md:w-40 md:h-40 pixelated">
+                    </div>
+                    <div class="flex-1 text-right">
+                        <p id="player-name" class="text-blue-400 text-xs md:text-sm mb-1">YOUR POKÉMON</p>
+                        <div class="flex items-center gap-2 justify-end">
+                            <span id="player-hp-text" class="text-xs">100/100</span>
+                            <div class="flex-1 bg-gray-700 rounded-full h-3 max-w-48">
+                                <div id="player-hp-bar" class="hp-bar bg-gradient-to-r from-green-500 to-green-400 h-full rounded-full" style="width:100%"></div>
+                            </div>
+                            <span id="player-level" class="text-xs">Lv.50</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex justify-between mb-4">
+                <div id="player-team-icons" class="flex gap-1"></div>
+                <div id="enemy-team-icons" class="flex gap-1"></div>
+            </div>
+            
+            <div id="move-panel" class="grid grid-cols-2 gap-2">
+                <button id="move1" onclick="useMove(0)" class="glass-panel py-3 rounded-lg text-xs hover:bg-white/20 transition"></button>
+                <button id="move2" onclick="useMove(1)" class="glass-panel py-3 rounded-lg text-xs hover:bg-white/20 transition"></button>
+                <button id="move3" onclick="useMove(2)" class="glass-panel py-3 rounded-lg text-xs hover:bg-white/20 transition"></button>
+                <button id="move4" onclick="useMove(3)" class="glass-panel py-3 rounded-lg text-xs hover:bg-white/20 transition"></button>
+            </div>
+            
+            <div class="flex gap-2 mt-2">
+                <button onclick="switchPokemon()" class="flex-1 glass-panel py-2 rounded-lg text-xs text-blue-300 hover:bg-blue-500/20 transition">🔄 SWITCH</button>
+                <button onclick="runAway()" class="flex-1 glass-panel py-2 rounded-lg text-xs text-gray-400 hover:bg-gray-500/20 transition">🏃 RUN</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Switch Pokemon Modal -->
+    <div id="switch-modal" class="hidden fixed inset-0 bg-black/80 z-40 flex items-center justify-center p-4">
+        <div class="glass-panel rounded-xl p-6 max-w-md w-full">
+            <h3 class="text-yellow-400 text-sm mb-4 text-center">SELECT POKÉMON</h3>
+            <div id="switch-options" class="flex flex-col gap-2"></div>
+            <button onclick="closeSwitchModal()" class="w-full mt-4 py-2 bg-gray-700 rounded-lg text-xs">CANCEL</button>
+        </div>
+    </div>
+
+    <!-- Pokédex Screen -->
+    <div id="pokedex-screen" class="hidden min-h-screen p-4">
+        <div class="max-w-6xl mx-auto">
+            <div class="flex justify-between items-center mb-4">
+                <button onclick="goToMenu()" class="text-yellow-400 text-xs">← BACK</button>
+                <h2 class="text-red-500 text-lg">POKÉDEX</h2>
+                <span id="pokedex-count" class="text-xs text-gray-400">0 / 905</span>
+            </div>
+            
+            <div class="flex gap-2 mb-4 flex-wrap">
+                <input type="text" id="pokedex-search" placeholder="Search..." 
+                    class="flex-1 p-2 rounded-lg bg-gray-800 text-white text-xs min-w-32" oninput="searchPokedex()">
+                <select id="pokedex-gen-filter" onchange="filterPokedexGen()" class="p-2 rounded-lg bg-gray-800 text-white text-xs">
+                    <option value="all">All Gens</option>
+                    <option value="1">Gen 1</option>
+                    <option value="2">Gen 2</option>
+                    <option value="3">Gen 3</option>
+                    <option value="4">Gen 4</option>
+                    <option value="5">Gen 5</option>
+                    <option value="6">Gen 6</option>
+                    <option value="7">Gen 7</option>
+                    <option value="8">Gen 8</option>
+                </select>
+            </div>
+            
+            <div id="pokedex-grid" class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-10 gap-2 max-h-[75vh] overflow-y-auto scrollbar-hide"></div>
+        </div>
+    </div>
+
+    <!-- Pokemon Detail Modal -->
+    <div id="pokemon-detail" class="hidden fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
+        <div class="glass-panel rounded-2xl p-6 max-w-sm w-full relative">
+            <button onclick="closeDetail()" class="absolute top-4 right-4 text-gray-400 text-lg">✕</button>
+            <div class="text-center">
+                <div id="detail-lock-status" class="text-xs mb-2"></div>
+                <img id="detail-sprite" src="" class="w-32 h-32 mx-auto pokemon-float">
+                <h3 id="detail-name" class="text-yellow-400 text-lg mt-2"></h3>
+                <p id="detail-number" class="text-gray-500 text-xs">#001</p>
+                <div id="detail-types" class="flex gap-2 justify-center mt-2"></div>
+                <div id="detail-tier" class="mt-2 text-xs"></div>
+                <div class="mt-4 text-left">
+                    <p class="text-xs text-gray-400 mb-2">Base Stats:</p>
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs w-10 text-gray-400">HP</span>
+                            <div class="flex-1 bg-gray-700 rounded-full h-2">
+                                <div id="detail-hp-bar" class="bg-green-500 h-full rounded-full"></div>
+                            </div>
+                            <span id="detail-hp" class="text-xs text-green-400 w-8">0</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs w-10 text-gray-400">ATK</span>
+                            <div class="flex-1 bg-gray-700 rounded-full h-2">
+                                <div id="detail-atk-bar" class="bg-red-500 h-full rounded-full"></div>
+                            </div>
+                            <span id="detail-atk" class="text-xs text-red-400 w-8">0</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs w-10 text-gray-400">DEF</span>
+                            <div class="flex-1 bg-gray-700 rounded-full h-2">
+                                <div id="detail-def-bar" class="bg-blue-500 h-full rounded-full"></div>
+                            </div>
+                            <span id="detail-def" class="text-xs text-blue-400 w-8">0</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs w-10 text-gray-400">SPD</span>
+                            <div class="flex-1 bg-gray-700 rounded-full h-2">
+                                <div id="detail-spd-bar" class="bg-yellow-500 h-full rounded-full"></div>
+                            </div>
+                            <span id="detail-spd" class="text-xs text-yellow-400 w-8">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Collection Screen -->
+    <div id="collection-screen" class="hidden min-h-screen p-4">
+        <div class="max-w-6xl mx-auto">
+            <div class="flex justify-between items-center mb-4">
+                <button onclick="goToMenu()" class="text-yellow-400 text-xs">← BACK</button>
+                <h2 class="text-pink-400 text-lg">MY COLLECTION</h2>
+                <button onclick="clearSave()" class="text-red-500 text-xs">RESET</button>
+            </div>
+            
+            <div class="glass-panel rounded-xl p-4 mb-4">
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4 text-xs text-center">
+                    <div>
+                        <p class="text-gray-400">Level</p>
+                        <p id="stats-level" class="text-yellow-400 text-lg">1</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-400">Total XP</p>
+                        <p id="stats-xp" class="text-purple-400 text-lg">0</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-400">Wins</p>
+                        <p id="stats-wins" class="text-green-400 text-lg">0</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-400">Online Wins</p>
+                        <p id="stats-online" class="text-blue-400 text-lg">0</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-400">Unlocked</p>
+                        <p id="stats-unlocked" class="text-pink-400 text-lg">0</p>
+                    </div>
+                </div>
+            </div>
+            
+            <h3 class="text-yellow-400 text-sm mb-2">Caught Pokémon</h3>
+            <div id="collection-grid" class="grid grid-cols-5 md:grid-cols-10 gap-2 max-h-[60vh] overflow-y-auto scrollbar-hide"></div>
+            
+            <div id="empty-collection" class="hidden text-center py-12 text-gray-500 text-sm">
+                <p>No Pokémon caught yet!</p>
+                <p class="text-xs mt-2">Win battles to catch Pokémon</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Victory/Defeat Screen -->
+    <div id="result-screen" class="hidden fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
+        <div class="text-center max-w-md">
+            <h2 id="result-title" class="text-4xl mb-4"></h2>
+            <p id="result-message" class="text-gray-300 text-sm mb-4"></p>
+            
+            <!-- XP Gain Display -->
+            <div id="xp-gain-display" class="glass-panel rounded-xl p-4 mb-4">
+                <p class="text-xs text-gray-400 mb-2">XP Earned</p>
+                <p id="xp-earned" class="text-2xl text-purple-400 mb-2">+0</p>
+                <div class="bg-gray-700 rounded-full h-3 mb-2">
+                    <div id="result-xp-bar" class="xp-bar bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full"></div>
+                </div>
+                <p id="level-up-text" class="text-yellow-400 text-sm hidden">🎉 LEVEL UP!</p>
+            </div>
+            
+            <div id="caught-pokemon" class="mb-4"></div>
+            <div id="new-unlocks" class="mb-4"></div>
+            
+            <div class="flex gap-4 justify-center">
+                <button onclick="playAgain()" class="px-6 py-3 bg-gradient-to-r from-green-600 to-blue-500 rounded-xl text-sm">PLAY AGAIN</button>
+                <button onclick="goToMenu()" class="px-6 py-3 glass-panel rounded-xl text-sm">MENU</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Online Lobby -->
+    <div id="online-lobby" class="hidden min-h-screen p-4">
+        <div class="max-w-md mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <button onclick="goToMenu()" class="text-yellow-400 text-xs">← BACK</button>
+                <h2 class="text-green-400 text-lg">ONLINE BATTLE</h2>
+                <span class="flex items-center gap-1">
+                    <span id="peer-status" class="online-status connecting"></span>
+                </span>
+            </div>
+            
+            <div class="glass-panel rounded-xl p-6 mb-4">
+                <label class="text-xs text-gray-400 block mb-2">Trainer Name</label>
+                <input type="text" id="trainer-name" placeholder="Enter name..." 
+                    class="w-full p-3 rounded bg-gray-800 text-white text-sm mb-4" maxlength="12">
+                
+                <div id="peer-id-display" class="text-center mb-4">
+                    <p class="text-xs text-gray-400">Your Battle Code:</p>
+                    <p id="my-peer-id" class="text-3xl text-yellow-400 tracking-widest mt-1 font-bold">----</p>
+                    <button onclick="copyPeerId()" class="text-xs text-blue-400 mt-2 hover:underline">📋 Copy Code</button>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <button onclick="waitForChallenger()" id="host-btn" disabled class="py-4 bg-green-600 rounded-xl text-xs hover:bg-green-500 disabled:opacity-50">
+                        🏠 HOST
+                    </button>
+                    <button onclick="showJoinRoom()" id="join-btn" disabled class="py-4 bg-blue-600 rounded-xl text-xs hover:bg-blue-500 disabled:opacity-50">
+                        🎮 JOIN
+                    </button>
+                </div>
+            </div>
+            
+            <div id="waiting-room" class="hidden glass-panel rounded-xl p-6 text-center">
+                <p class="text-xs text-gray-400 mb-2">Share this code:</p>
+                <p id="host-code" class="text-4xl text-yellow-400 mb-4 tracking-widest font-bold"></p>
+                <p class="text-xs text-gray-500">Waiting for challenger...</p>
+                <div class="pokeball-loader mx-auto mt-4"></div>
+                <button onclick="cancelHosting()" class="mt-4 text-red-400 text-xs hover:underline">Cancel</button>
+            </div>
+            
+            <div id="join-room" class="hidden glass-panel rounded-xl p-6">
+                <label class="text-xs text-gray-400 block mb-2">Enter Code (4 letters)</label>
+                <input type="text" id="opponent-code-input" placeholder="ABCD" 
+                    class="w-full p-4 rounded bg-gray-800 text-white text-center text-3xl tracking-widest mb-4 uppercase font-bold" maxlength="4">
+                <button onclick="connectToOpponent()" class="w-full py-3 bg-green-600 rounded-xl text-xs hover:bg-green-500">⚔️ CONNECT</button>
+                <button onclick="cancelJoin()" class="w-full mt-2 text-gray-400 text-xs hover:underline">Cancel</button>
+            </div>
+            
+            <div id="connection-status" class="hidden glass-panel rounded-xl p-4 text-center">
+                <div class="pokeball-loader mx-auto mb-4"></div>
+                <p id="connection-message" class="text-xs text-gray-400">Connecting...</p>
+            </div>
+            
+            <div id="online-chat" class="hidden glass-panel rounded-xl p-4 mt-4">
+                <div id="chat-messages" class="h-24 overflow-y-auto scrollbar-hide mb-2 text-xs space-y-1"></div>
+                <div class="flex gap-2">
+                    <input type="text" id="chat-input" placeholder="Message..." 
+                        class="flex-1 p-2 rounded bg-gray-800 text-white text-xs" maxlength="50"
+                        onkeypress="if(event.key==='Enter')sendChatMessage()">
+                    <button onclick="sendChatMessage()" class="px-3 py-2 bg-blue-600 rounded text-xs">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============== GAME CONFIG ==============
+        const TOTAL_POKEMON = 905; // Gen 1-8
+        const BATCH_SIZE = 100;
+        const SAVE_KEY = 'pokemon_battle_ultimate_v3';
+        
+        const genRanges = {
+            1: [1, 151], 2: [152, 251], 3: [252, 386], 4: [387, 493],
+            5: [494, 649], 6: [650, 721], 7: [722, 809], 8: [810, 905]
+        };
+        
+        // Pokemon tiers based on base stat total
+        const tierThresholds = { S: 580, A: 500, B: 420, C: 350, D: 0 };
+        const tierColors = { S: '#FFD700', A: '#C0C0C0', B: '#CD7F32', C: '#4A90D9', D: '#888' };
+        const tierUnlockLevels = { D: 1, C: 5, B: 15, A: 30, S: 50 };
+        
+        // XP system
+        const XP_PER_LEVEL = level => Math.floor(100 * Math.pow(1.5, level - 1));
+        const XP_FOR_WIN = (playerLevel, aiLevel) => Math.floor(50 + (aiLevel * 10) + (playerLevel * 5));
+        const XP_FOR_ONLINE_WIN = 150;
+        const XP_FOR_LOSS = 25;
+        
+        // ============== GAME STATE ==============
+        let allPokemon = [];
+        let playerTeam = [];
+        let enemyTeam = [];
+        let currentPlayerPokemon = 0;
+        let currentEnemyPokemon = 0;
+        let gameMode = 'single';
+        let currentFilter = 'all';
+        let isPlayerTurn = true;
+        let battleInProgress = false;
+        let selectedDetailPokemon = null;
+        let isHost = false;
+        let waitingForOpponent = false;
+        let aiDifficulty = 1;
+        
+        // ============== PEERJS STATE ==============
+        let peer = null;
+        let connection = null;
+        let myPeerId = null;
+        let shortCode = '';
+        let opponentName = 'Opponent';
+        
+        // ============== SAVE DATA ==============
+        let saveData = {
+            version: 3,
+            trainerName: '',
+            level: 1,
+            xp: 0,
+            totalXp: 0,
+            wins: 0,
+            losses: 0,
+            onlineWins: 0,
+            onlineLosses: 0,
+            collection: [],
+            unlockedTiers: ['D'],
+            lastSave: Date.now()
+        };
+        
+        // ============== TYPE CHART ==============
+        const typeChart = {
+            fire: { grass: 2, water: 0.5, fire: 0.5, ice: 2, bug: 2, steel: 2, rock: 0.5, dragon: 0.5 },
+            water: { fire: 2, water: 0.5, grass: 0.5, ground: 2, rock: 2, dragon: 0.5 },
+            grass: { water: 2, fire: 0.5, grass: 0.5, ground: 2, rock: 2, flying: 0.5, bug: 0.5, poison: 0.5, steel: 0.5 },
+            electric: { water: 2, electric: 0.5, grass: 0.5, ground: 0, flying: 2, dragon: 0.5 },
+            ice: { grass: 2, ground: 2, flying: 2, dragon: 2, fire: 0.5, water: 0.5, ice: 0.5, steel: 0.5 },
+            fighting: { normal: 2, ice: 2, rock: 2, dark: 2, steel: 2, poison: 0.5, flying: 0.5, psychic: 0.5, bug: 0.5, ghost: 0, fairy: 0.5 },
+            poison: { grass: 2, fairy: 2, poison: 0.5, ground: 0.5, rock: 0.5, ghost: 0.5, steel: 0 },
+            ground: { fire: 2, electric: 2, poison: 2, rock: 2, steel: 2, grass: 0.5, bug: 0.5, flying: 0 },
+            flying: { grass: 2, fighting: 2, bug: 2, electric: 0.5, rock: 0.5, steel: 0.5 },
+            psychic: { fighting: 2, poison: 2, psychic: 0.5, steel: 0.5, dark: 0 },
+            bug: { grass: 2, psychic: 2, dark: 2, fire: 0.5, fighting: 0.5, poison: 0.5, flying: 0.5, ghost: 0.5, steel: 0.5, fairy: 0.5 },
+            rock: { fire: 2, ice: 2, flying: 2, bug: 2, fighting: 0.5, ground: 0.5, steel: 0.5 },
+            ghost: { psychic: 2, ghost: 2, normal: 0, dark: 0.5 },
+            dragon: { dragon: 2, steel: 0.5, fairy: 0 },
+            dark: { psychic: 2, ghost: 2, fighting: 0.5, dark: 0.5, fairy: 0.5 },
+            steel: { ice: 2, rock: 2, fairy: 2, fire: 0.5, water: 0.5, electric: 0.5, steel: 0.5 },
+            fairy: { fighting: 2, dragon: 2, dark: 2, fire: 0.5, poison: 0.5, steel: 0.5 },
+            normal: { ghost: 0, rock: 0.5, steel: 0.5 }
+        };
+        
+        const typeColors = {
+            fire: '#F08030', water: '#6890F0', grass: '#78C850', electric: '#F8D030',
+            ice: '#98D8D8', fighting: '#C03028', poison: '#A040A0', ground: '#E0C068',
+            flying: '#A890F0', psychic: '#F85888', bug: '#A8B820', rock: '#B8A038',
+            ghost: '#705898', dragon: '#7038F8', dark: '#705848', steel: '#B8B8D0',
+            fairy: '#EE99AC', normal: '#A8A878'
+        };
+        
+        const typeEmoji = {
+            fire: '🔥', water: '💧', grass: '🌿', electric: '⚡', ice: '❄️',
+            fighting: '👊', poison: '☠️', ground: '🌍', flying: '🦅', psychic: '🔮',
+            bug: '🐛', rock: '🪨', ghost: '👻', dragon: '🐉', dark: '🌑',
+            steel: '⚙️', fairy: '✨', normal: '⚪'
+        };
+        
+        // ============== LOAD POKEMON ==============
+        async function loadPokemon() {
+            const loadingProgress = document.getElementById('loading-progress');
+            const loadingGen = document.getElementById('loading-gen');
+            
+            try {
+                for (let i = 1; i <= TOTAL_POKEMON; i += BATCH_SIZE) {
+                    const end = Math.min(i + BATCH_SIZE - 1, TOTAL_POKEMON);
+                    const gen = Object.entries(genRanges).find(([g, [s, e]]) => i >= s && i <= e)?.[0] || '8';
+                    loadingGen.textContent = `Generation ${gen}`;
+                    
+                    const promises = [];
+                    for (let j = i; j <= end; j++) {
+                        promises.push(
+                            fetch(`https://pokeapi.co/api/v2/pokemon/${j}`)
+                                .then(r => r.ok ? r.json() : null)
+                                .catch(() => null)
+                        );
+                    }
+                    
+                    const results = await Promise.all(promises);
+                    
+                    results.forEach(data => {
+                        if (data) {
+                            const stats = {
+                                hp: data.stats[0].base_stat,
+                                attack: data.stats[1].base_stat,
+                                defense: data.stats[2].base_stat,
+                                spAtk: data.stats[3].base_stat,
+                                spDef: data.stats[4].base_stat,
+                                speed: data.stats[5].base_stat
+                            };
+                            const total = Object.values(stats).reduce((a, b) => a + b, 0);
+                            const tier = total >= tierThresholds.S ? 'S' : total >= tierThresholds.A ? 'A' : total >= tierThresholds.B ? 'B' : total >= tierThresholds.C ? 'C' : 'D';
+                            
+                            allPokemon.push({
+                                id: data.id,
+                                name: data.name,
+                                sprite: data.sprites.front_default || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${data.id}.png`,
+                                spriteBack: data.sprites.back_default,
+                                types: data.types.map(t => t.type.name),
+                                stats: stats,
+                                total: total,
+                                tier: tier,
+                                moves: generateMoves(data)
+                            });
+                        }
+                    });
+                    
+                    loadingProgress.textContent = Math.round((end / TOTAL_POKEMON) * 100) + '%';
+                }
+                
+                allPokemon.sort((a, b) => a.id - b.id);
+                document.getElementById('total-pokemon-count').textContent = allPokemon.length;
+                
+                loadSaveData();
+                initializePeer();
+                
+                document.getElementById('loading-screen').classList.add('hidden');
+                document.getElementById('main-menu').classList.remove('hidden');
+                
+            } catch (error) {
+                console.error('Load error:', error);
+                loadingProgress.textContent = 'Error! Refresh page.';
+            }
+        }
+        
+        function generateMoves(data) {
+            const types = data.types.map(t => t.type.name);
+            const moves = {
+                fire: ['Ember', 'Fire Punch', 'Flamethrower', 'Fire Blast'],
+                water: ['Water Gun', 'Aqua Jet', 'Surf', 'Hydro Pump'],
+                grass: ['Vine Whip', 'Razor Leaf', 'Energy Ball', 'Leaf Storm'],
+                electric: ['Thunder Shock', 'Spark', 'Thunderbolt', 'Thunder'],
+                ice: ['Ice Shard', 'Ice Beam', 'Blizzard', 'Freeze Dry'],
+                fighting: ['Karate Chop', 'Brick Break', 'Close Combat', 'Focus Blast'],
+                poison: ['Poison Sting', 'Sludge', 'Sludge Bomb', 'Gunk Shot'],
+                ground: ['Mud Slap', 'Dig', 'Earthquake', 'Earth Power'],
+                flying: ['Gust', 'Wing Attack', 'Air Slash', 'Hurricane'],
+                psychic: ['Confusion', 'Psybeam', 'Psychic', 'Future Sight'],
+                bug: ['Bug Bite', 'X-Scissor', 'Bug Buzz', 'Megahorn'],
+                rock: ['Rock Throw', 'Rock Slide', 'Stone Edge', 'Power Gem'],
+                ghost: ['Lick', 'Shadow Ball', 'Hex', 'Shadow Force'],
+                dragon: ['Dragon Rage', 'Dragon Claw', 'Dragon Pulse', 'Draco Meteor'],
+                dark: ['Bite', 'Crunch', 'Dark Pulse', 'Night Daze'],
+                steel: ['Metal Claw', 'Iron Head', 'Flash Cannon', 'Meteor Mash'],
+                fairy: ['Fairy Wind', 'Dazzling Gleam', 'Moonblast', 'Play Rough'],
+                normal: ['Tackle', 'Headbutt', 'Body Slam', 'Hyper Beam']
+            };
+            const powers = [40, 55, 75, 95];
+            const t1 = types[0], t2 = types[1] || types[0];
+            const m1 = moves[t1] || moves.normal, m2 = moves[t2] || moves.normal;
+            
+            return [
+                { name: m1[0], power: powers[0], type: t1 },
+                { name: m1[2], power: powers[2], type: t1 },
+                { name: m2[1], power: powers[1], type: t2 },
+                { name: m2[3], power: powers[3], type: t2 }
+            ];
+        }
+        
+        // ============== SAVE SYSTEM ==============
+        function loadSaveData() {
+            try {
+                const saved = localStorage.getItem(SAVE_KEY);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (parsed.version === 3) {
+                        saveData = parsed;
+                    }
+                }
+            } catch (e) {
+                console.error('Load save error:', e);
+            }
+            updateLevelDisplay();
+            updateUnlockedTiers();
+        }
+        
+        function saveGame() {
+            try {
+                saveData.lastSave = Date.now();
+                localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+                // Backup save
+                localStorage.setItem(SAVE_KEY + '_backup', JSON.stringify(saveData));
+            } catch (e) {
+                console.error('Save error:', e);
+            }
+        }
+        
+        function clearSave() {
+            if (confirm('Delete ALL progress? This cannot be undone!')) {
+                localStorage.removeItem(SAVE_KEY);
+                localStorage.removeItem(SAVE_KEY + '_backup');
+                location.reload();
+            }
+        }
+        
+        // ============== LEVEL SYSTEM ==============
+        function addXP(amount) {
+            const oldLevel = saveData.level;
+            saveData.xp += amount;
+            saveData.totalXp += amount;
+            
+            let leveledUp = false;
+            while (saveData.xp >= XP_PER_LEVEL(saveData.level)) {
+                saveData.xp -= XP_PER_LEVEL(saveData.level);
+                saveData.level++;
+                leveledUp = true;
+            }
+            
+            updateUnlockedTiers();
+            saveGame();
+            
+            return { leveledUp, oldLevel, newLevel: saveData.level };
+        }
+        
+        function updateUnlockedTiers() {
+            saveData.unlockedTiers = [];
+            for (const [tier, level] of Object.entries(tierUnlockLevels)) {
+                if (saveData.level >= level) {
+                    saveData.unlockedTiers.push(tier);
+                }
+            }
+        }
+        
+        function isPokemonUnlocked(pokemon) {
+            return saveData.unlockedTiers.includes(pokemon.tier);
+        }
+        
+        function getUnlockedPokemon() {
+            return allPokemon.filter(p => isPokemonUnlocked(p));
+        }
+        
+        function updateLevelDisplay() {
+            document.getElementById('player-level-display').textContent = saveData.level;
+            const xpNeeded = XP_PER_LEVEL(saveData.level);
+            const xpPercent = (saveData.xp / xpNeeded) * 100;
+            document.getElementById('xp-bar-display').style.width = xpPercent + '%';
+            document.getElementById('xp-current').textContent = saveData.xp + ' XP';
+            document.getElementById('xp-needed').textContent = xpNeeded + ' XP to level ' + (saveData.level + 1);
+            document.getElementById('unlocked-pokemon-count').textContent = getUnlockedPokemon().length + ' / ' + allPokemon.length + ' Pokémon Unlocked';
+            document.getElementById('save-status').textContent = `Level ${saveData.level} | ${saveData.wins} wins | ${saveData.collection.length} caught`;
+        }
+        
+        // ============== PEERJS (SHORT CODES) ==============
+        function generateShortCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+            let code = '';
+            for (let i = 0; i < 4; i++) {
+                code += chars[Math.floor(Math.random() * chars.length)];
+            }
+            return code;
+        }
+        
+        function initializePeer() {
+            shortCode = generateShortCode();
+            const peerId = 'pkm3-' + shortCode.toLowerCase();
+            
+            peer = new Peer(peerId, { debug: 0 });
+            
+            peer.on('open', (id) => {
+                myPeerId = id;
+                document.getElementById('my-peer-id').textContent = shortCode;
+                document.getElementById('peer-status').className = 'online-status connected';
+                document.getElementById('online-indicator').className = 'online-status connected';
+                document.getElementById('host-btn').disabled = false;
+                document.getElementById('join-btn').disabled = false;
+            });
+            
+            peer.on('connection', (conn) => {
+                if (waitingForOpponent) {
+                    handleIncomingConnection(conn);
+                } else {
+                    conn.close();
+                }
+            });
+            
+            peer.on('error', (err) => {
+                console.error('Peer error:', err);
+                if (err.type === 'peer-unavailable') {
+                    alert('Code not found! Check and try again.');
+                    cancelJoin();
+                } else if (err.type === 'unavailable-id') {
+                    shortCode = generateShortCode();
+                    setTimeout(() => initializePeer(), 1000);
+                }
+            });
+            
+            peer.on('disconnected', () => {
+                document.getElementById('peer-status').className = 'online-status disconnected';
+                peer.reconnect();
+            });
+        }
+        
+        function handleIncomingConnection(conn) {
+            connection = conn;
+            setupConnectionHandlers();
+            
+            conn.on('open', () => {
+                waitingForOpponent = false;
+                document.getElementById('waiting-room').classList.add('hidden');
+                document.getElementById('online-chat').classList.remove('hidden');
+                
+                sendData({ type: 'trainer-info', name: document.getElementById('trainer-name').value || 'Trainer', level: saveData.level });
+                addChatMessage('System', 'Opponent connected!');
+                
+                setTimeout(() => {
+                    document.getElementById('online-lobby').classList.add('hidden');
+                    showTeamSelect('SELECT YOUR TEAM');
+                }, 1000);
+            });
+        }
+        
+        function setupConnectionHandlers() {
+            connection.on('data', handleReceivedData);
+            connection.on('close', () => {
+                addChatMessage('System', 'Opponent disconnected!');
+                if (battleInProgress) {
+                    showMessage('Opponent left. You win!');
+                    setTimeout(() => endBattle(true), 1500);
+                }
+                connection = null;
+            });
+        }
+        
+        function handleReceivedData(data) {
+            switch (data.type) {
+                case 'trainer-info':
+                    opponentName = data.name;
+                    document.getElementById('opponent-name').textContent = opponentName;
+                    addChatMessage('System', `${opponentName} (Lv.${data.level}) joined!`);
+                    break;
+                case 'chat':
+                    addChatMessage(opponentName, data.message);
+                    break;
+                case 'team-ready':
+                    enemyTeam = data.team.map(p => ({ ...allPokemon.find(pk => pk.id === p.id), currentHp: p.currentHp, maxHp: p.maxHp }));
+                    if (playerTeam.length === 3) startOnlineBattle();
+                    break;
+                case 'move':
+                    handleOpponentMove(data.moveIndex);
+                    break;
+                case 'switch':
+                    handleOpponentSwitch(data.pokemonIndex);
+                    break;
+                case 'forfeit':
+                    showMessage(`${opponentName} forfeited!`);
+                    setTimeout(() => endBattle(true), 1500);
+                    break;
+            }
+        }
+        
+        function sendData(data) {
+            if (connection && connection.open) connection.send(data);
+        }
+        
+        // ============== ONLINE LOBBY ==============
+        function showOnlineLobby() {
+            hideAllScreens();
+            document.getElementById('online-lobby').classList.remove('hidden');
+            document.getElementById('trainer-name').value = saveData.trainerName || '';
+            document.getElementById('waiting-room').classList.add('hidden');
+            document.getElementById('join-room').classList.add('hidden');
+            document.getElementById('connection-status').classList.add('hidden');
+            document.getElementById('online-chat').classList.add('hidden');
+        }
+        
+        function waitForChallenger() {
+            saveData.trainerName = document.getElementById('trainer-name').value || 'Trainer';
+            saveGame();
+            waitingForOpponent = true;
+            isHost = true;
+            document.getElementById('host-code').textContent = shortCode;
+            document.getElementById('waiting-room').classList.remove('hidden');
+        }
+        
+        function cancelHosting() {
+            waitingForOpponent = false;
+            document.getElementById('waiting-room').classList.add('hidden');
+        }
+        
+        function showJoinRoom() {
+            document.getElementById('join-room').classList.remove('hidden');
+            document.getElementById('waiting-room').classList.add('hidden');
+        }
+        
+        function cancelJoin() {
+            document.getElementById('join-room').classList.add('hidden');
+            document.getElementById('connection-status').classList.add('hidden');
+        }
+        
+        function connectToOpponent() {
+            const code = document.getElementById('opponent-code-input').value.toUpperCase().trim();
+            if (code.length !== 4) {
+                alert('Enter a 4-letter code');
+                return;
+            }
+            
+            saveData.trainerName = document.getElementById('trainer-name').value || 'Trainer';
+            saveGame();
+            isHost = false;
+            
+            document.getElementById('join-room').classList.add('hidden');
+            document.getElementById('connection-status').classList.remove('hidden');
+            document.getElementById('connection-message').textContent = 'Connecting...';
+            
+            connection = peer.connect('pkm3-' + code.toLowerCase(), { reliable: true });
+            
+            connection.on('open', () => {
+                document.getElementById('connection-status').classList.add('hidden');
+                document.getElementById('online-chat').classList.remove('hidden');
+                setupConnectionHandlers();
+                sendData({ type: 'trainer-info', name: saveData.trainerName, level: saveData.level });
+                addChatMessage('System', 'Connected!');
+                
+                setTimeout(() => {
+                    document.getElementById('online-lobby').classList.add('hidden');
+                    showTeamSelect('SELECT YOUR TEAM');
+                }, 1000);
+            });
+            
+            connection.on('error', () => {
+                document.getElementById('connection-status').classList.add('hidden');
+                document.getElementById('join-room').classList.remove('hidden');
+            });
+        }
+        
+        function copyPeerId() {
+            navigator.clipboard.writeText(shortCode);
+            alert('Code copied: ' + shortCode);
+        }
+        
+        function addChatMessage(sender, message) {
+            const chat = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            div.className = sender === 'System' ? 'text-gray-500' : sender === opponentName ? 'text-red-300' : 'text-blue-300';
+            div.textContent = sender === 'System' ? message : `${sender}: ${message}`;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        }
+        
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const msg = input.value.trim();
+            if (msg && connection) {
+                sendData({ type: 'chat', message: msg });
+                addChatMessage('You', msg);
+                input.value = '';
+            }
+        }
+        
+        // ============== NAVIGATION ==============
+        function hideAllScreens() {
+            ['main-menu', 'team-select', 'battle-screen', 'pokedex-screen', 'collection-screen', 'online-lobby', 'result-screen'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+        }
+        
+        function goToMenu() {
+            hideAllScreens();
+            document.getElementById('main-menu').classList.remove('hidden');
+            playerTeam = [];
+            enemyTeam = [];
+            battleInProgress = false;
+            updateLevelDisplay();
+            
+            if (connection) {
+                sendData({ type: 'forfeit' });
+                connection.close();
+                connection = null;
+            }
+        }
+        
+        // ============== GAME MODES ==============
+        function startSinglePlayer() {
+            gameMode = 'single';
+            aiDifficulty = Math.min(Math.floor(saveData.level / 5) + 1, 10);
+            showTeamSelect('SELECT YOUR TEAM');
+            document.getElementById('ai-difficulty-display').classList.remove('hidden');
+            const diffText = ['Easy', 'Normal', 'Hard', 'Expert', 'Master', 'Champion', 'Elite', 'Legend', 'Mythic', 'Ultimate'][aiDifficulty - 1];
+            document.getElementById('ai-level-text').textContent = diffText;
+        }
+        
+        function startMultiplayer() {
+            gameMode = 'multi';
+            showTeamSelect('PLAYER 1: SELECT TEAM');
+            document.getElementById('ai-difficulty-display').classList.add('hidden');
+        }
+        
+        function showTeamSelect(title) {
+            hideAllScreens();
+            document.getElementById('team-select').classList.remove('hidden');
+            document.getElementById('team-select-title').textContent = title;
+            playerTeam = [];
+            renderPokemonGrid();
+            updateTeamDisplay();
+        }
+        
+        // ============== TEAM SELECTION ==============
+        function renderPokemonGrid() {
+            const grid = document.getElementById('pokemon-grid');
+            const search = document.getElementById('pokemon-search').value.toLowerCase();
+            const gen = document.getElementById('gen-filter').value;
+            const unlockFilter = document.getElementById('unlock-filter').value;
+            
+            let filtered = allPokemon.filter(p => {
+                const matchSearch = p.name.includes(search) || p.id.toString().includes(search);
+                const matchType = currentFilter === 'all' || p.types.includes(currentFilter);
+                let matchGen = true;
+                if (gen !== 'all') {
+                    const [s, e] = genRanges[gen];
+                    matchGen = p.id >= s && p.id <= e;
+                }
+                const unlocked = isPokemonUnlocked(p);
+                let matchUnlock = true;
+                if (unlockFilter === 'unlocked') matchUnlock = unlocked;
+                else if (unlockFilter === 'locked') matchUnlock = !unlocked;
+                
+                return matchSearch && matchType && matchGen && matchUnlock;
+            });
+            
+            grid.innerHTML = filtered.map(p => {
+                const unlocked = isPokemonUnlocked(p);
+                const selected = playerTeam.find(t => t.id === p.id);
+                return `
+                    <div class="pokemon-card glass-panel rounded-lg p-1 cursor-pointer text-center relative ${selected ? 'ring-2 ring-yellow-400' : ''} ${!unlocked ? 'locked-pokemon' : ''}"
+                        onclick="${unlocked ? `togglePokemonSelect(${p.id})` : `showLockedMessage('${p.tier}')`}">
+                        <span class="tier-badge" style="color:${tierColors[p.tier]}">${p.tier}</span>
+                        <img src="${p.sprite}" alt="${p.name}" class="w-10 h-10 mx-auto" loading="lazy">
+                        <p class="capitalize truncate" style="font-size:7px">${p.name}</p>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function showLockedMessage(tier) {
+            alert(`Unlock ${tier}-tier Pokémon at Level ${tierUnlockLevels[tier]}!\nYour level: ${saveData.level}`);
+        }
+        
+        function filterType(type) {
+            currentFilter = type;
+            renderPokemonGrid();
+        }
+        
+        function filterGen() { renderPokemonGrid(); }
+        function filterUnlocked() { renderPokemonGrid(); }
+        function searchPokemon() { renderPokemonGrid(); }
+        
+        function togglePokemonSelect(id) {
+            const pokemon = allPokemon.find(p => p.id === id);
+            const idx = playerTeam.findIndex(p => p.id === id);
+            
+            if (idx >= 0) {
+                playerTeam.splice(idx, 1);
+            } else if (playerTeam.length < 3) {
+                playerTeam.push({ ...pokemon, currentHp: pokemon.stats.hp, maxHp: pokemon.stats.hp });
+            }
+            
+            updateTeamDisplay();
+            renderPokemonGrid();
+        }
+        
+        function updateTeamDisplay() {
+            const display = document.getElementById('selected-team');
+            document.getElementById('team-count').textContent = `${playerTeam.length}/3`;
+            document.getElementById('start-battle-btn').disabled = playerTeam.length < 1;
+            
+            display.innerHTML = playerTeam.map(p => `
+                <div class="glass-panel rounded-lg p-2 text-center">
+                    <img src="${p.sprite}" class="w-14 h-14 mx-auto pokemon-float">
+                    <p class="capitalize" style="font-size:8px">${p.name}</p>
+                    <p class="text-gray-400" style="font-size:7px">HP:${p.stats.hp}</p>
+                </div>
+            `).join('');
+        }
+        
+        function confirmTeamSelection() {
+            if (gameMode === 'online') {
+                sendData({ type: 'team-ready', team: playerTeam.map(p => ({ id: p.id, currentHp: p.currentHp, maxHp: p.maxHp })) });
+                if (enemyTeam.length === 3) {
+                    startOnlineBattle();
+                } else {
+                    hideAllScreens();
+                    document.getElementById('online-lobby').classList.remove('hidden');
+                    document.getElementById('connection-status').classList.remove('hidden');
+                    document.getElementById('connection-message').textContent = 'Waiting for opponent...';
+                }
+            } else if (gameMode === 'multi' && enemyTeam.length === 0) {
+                enemyTeam = [...playerTeam];
+                playerTeam = [];
+                document.getElementById('team-select-title').textContent = 'PLAYER 2: SELECT TEAM';
+                updateTeamDisplay();
+                renderPokemonGrid();
+            } else {
+                if (gameMode === 'single') generateAITeam();
+                startBattle();
+            }
+        }
+        
+        function generateAITeam() {
+            enemyTeam = [];
+            
+            // AI uses stronger Pokemon based on difficulty
+            let availableTiers = ['D'];
+            if (aiDifficulty >= 2) availableTiers.push('C');
+            if (aiDifficulty >= 4) availableTiers.push('B');
+            if (aiDifficulty >= 6) availableTiers.push('A');
+            if (aiDifficulty >= 8) availableTiers.push('S');
+            
+            const pool = allPokemon.filter(p => availableTiers.includes(p.tier));
+            const shuffled = [...pool].sort(() => Math.random() - 0.5);
+            
+            for (let i = 0; i < 3 && i < shuffled.length; i++) {
+                const p = shuffled[i];
+                // AI Pokemon get stat boost based on difficulty
+                const hpBoost = 1 + (aiDifficulty * 0.1);
+                const boostedHp = Math.floor(p.stats.hp * hpBoost);
+                enemyTeam.push({ ...p, currentHp: boostedHp, maxHp: boostedHp });
+            }
+        }
+        
+        // ============== BATTLE SYSTEM ==============
+        function startBattle() {
+            currentPlayerPokemon = 0;
+            currentEnemyPokemon = 0;
+            battleInProgress = true;
+            isPlayerTurn = true;
+            
+            hideAllScreens();
+            document.getElementById('battle-screen').classList.remove('hidden');
+            document.getElementById('online-battle-status').classList.add('hidden');
+            
+            updateBattleUI();
+            showMessage(`Go, ${playerTeam[0].name.toUpperCase()}!`);
+        }
+        
+        function startOnlineBattle() {
+            gameMode = 'online';
+            currentPlayerPokemon = 0;
+            currentEnemyPokemon = 0;
+            battleInProgress = true;
+            isPlayerTurn = isHost;
+            
+            hideAllScreens();
+            document.getElementById('battle-screen').classList.remove('hidden');
+            document.getElementById('online-battle-status').classList.remove('hidden');
+            document.getElementById('opponent-name').textContent = opponentName;
+            
+            updateBattleUI();
+            showMessage(isPlayerTurn ? 'Your turn!' : `Waiting for ${opponentName}...`);
+            disableMoves(!isPlayerTurn);
+        }
+        
+        function updateBattleUI() {
+            const player = playerTeam[currentPlayerPokemon];
+            const enemy = enemyTeam[currentEnemyPokemon];
+            if (!player || !enemy) return;
+            
+            document.getElementById('player-sprite').src = player.spriteBack || player.sprite;
+            document.getElementById('player-name').textContent = player.name.toUpperCase();
+            document.getElementById('player-hp-text').textContent = `${Math.max(0, player.currentHp)}/${player.maxHp}`;
+            const playerHpPct = Math.max(0, (player.currentHp / player.maxHp) * 100);
+            document.getElementById('player-hp-bar').style.width = playerHpPct + '%';
+            updateHpBarColor('player-hp-bar', playerHpPct);
+            
+            document.getElementById('enemy-sprite').src = enemy.sprite;
+            document.getElementById('enemy-name').textContent = enemy.name.toUpperCase();
+            document.getElementById('enemy-hp-text').textContent = `${Math.max(0, enemy.currentHp)}/${enemy.maxHp}`;
+            const enemyHpPct = Math.max(0, (enemy.currentHp / enemy.maxHp) * 100);
+            document.getElementById('enemy-hp-bar').style.width = enemyHpPct + '%';
+            updateHpBarColor('enemy-hp-bar', enemyHpPct);
+            
+            const moves = player.moves;
+            for (let i = 0; i < 4; i++) {
+                const btn = document.getElementById(`move${i + 1}`);
+                if (moves[i]) {
+                    btn.innerHTML = `${typeEmoji[moves[i].type] || '⚪'} ${moves[i].name}<br><span class="text-gray-400" style="font-size:7px">PWR:${moves[i].power}</span>`;
+                    btn.style.borderLeft = `4px solid ${typeColors[moves[i].type] || '#888'}`;
+                    btn.disabled = !isPlayerTurn;
+                }
+            }
+            
+            document.getElementById('player-team-icons').innerHTML = playerTeam.map((p, i) => 
+                `<div class="w-7 h-7 rounded-full ${p.currentHp > 0 ? 'bg-green-500' : 'bg-red-900'} ${i === currentPlayerPokemon ? 'ring-2 ring-yellow-400' : ''} flex items-center justify-center">
+                    <img src="${p.sprite}" class="w-5 h-5">
+                </div>`
+            ).join('');
+            
+            document.getElementById('enemy-team-icons').innerHTML = enemyTeam.map((p, i) => 
+                `<div class="w-7 h-7 rounded-full ${p.currentHp > 0 ? 'bg-red-500' : 'bg-gray-900'} ${i === currentEnemyPokemon ? 'ring-2 ring-yellow-400' : ''} flex items-center justify-center">
+                    <img src="${p.sprite}" class="w-5 h-5">
+                </div>`
+            ).join('');
+        }
+        
+        function updateHpBarColor(id, pct) {
+            const bar = document.getElementById(id);
+            bar.className = 'hp-bar h-full rounded-full ' + (pct > 50 ? 'bg-gradient-to-r from-green-500 to-green-400' : pct > 20 ? 'bg-gradient-to-r from-yellow-500 to-yellow-400' : 'bg-gradient-to-r from-red-500 to-red-400');
+        }
+        
+        async function useMove(moveIndex) {
+            if (!isPlayerTurn || !battleInProgress) return;
+            
+            const player = playerTeam[currentPlayerPokemon];
+            const enemy = enemyTeam[currentEnemyPokemon];
+            const move = player.moves[moveIndex];
+            
+            isPlayerTurn = false;
+            disableMoves(true);
+            
+            if (gameMode === 'online') sendData({ type: 'move', moveIndex });
+            
+            await performAttack(player, enemy, move, 'player');
+            
+            if (enemy.currentHp <= 0) {
+                await handleFaint('enemy');
+                return;
+            }
+            
+            if (gameMode === 'online') {
+                showMessage(`Waiting for ${opponentName}...`);
+            } else {
+                await delay(400);
+                // AI move selection (smarter at higher difficulty)
+                let bestMove = enemy.moves[0];
+                if (aiDifficulty >= 3) {
+                    // Pick move with best effectiveness
+                    let bestScore = 0;
+                    for (const m of enemy.moves) {
+                        const eff = getTypeEffectiveness(m.type, player.types[0]);
+                        const score = m.power * eff;
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMove = m;
+                        }
+                    }
+                } else {
+                    bestMove = enemy.moves[Math.floor(Math.random() * enemy.moves.length)];
+                }
+                
+                await performAttack(enemy, player, bestMove, 'enemy');
+                
+                if (player.currentHp <= 0) {
+                    await handleFaint('player');
+                    return;
+                }
+                
+                isPlayerTurn = true;
+                disableMoves(false);
+            }
+        }
+        
+        async function handleOpponentMove(moveIndex) {
+            const player = playerTeam[currentPlayerPokemon];
+            const enemy = enemyTeam[currentEnemyPokemon];
+            const move = enemy.moves[moveIndex];
+            
+            await performAttack(enemy, player, move, 'enemy');
+            
+            if (player.currentHp <= 0) {
+                await handleFaint('player');
+                return;
+            }
+            
+            isPlayerTurn = true;
+            disableMoves(false);
+            showMessage('Your turn!');
+        }
+        
+        async function performAttack(attacker, defender, move, side) {
+            showMessage(`${attacker.name.toUpperCase()} used ${typeEmoji[move.type] || '💥'} ${move.name}!`);
+            
+            const attackerEl = document.getElementById(side === 'player' ? 'player-pokemon' : 'enemy-pokemon');
+            const defenderEl = document.getElementById(side === 'player' ? 'enemy-pokemon' : 'player-pokemon');
+            
+            attackerEl.classList.add(side === 'player' ? 'attack-anim-right' : 'attack-anim-left');
+            await delay(250);
+            
+            const eff = getTypeEffectiveness(move.type, defender.types[0]);
+            const crit = Math.random() < 0.1;
+            const critMult = crit ? 1.5 : 1;
+            const baseDmg = Math.floor((move.power * (attacker.stats.attack / defender.stats.defense)) / 4);
+            const damage = Math.max(1, Math.floor(baseDmg * eff * critMult * (0.85 + Math.random() * 0.15)));
+            
+            defender.currentHp = Math.max(0, defender.currentHp - damage);
+            
+            defenderEl.classList.add(crit ? 'critical-anim' : 'damage-anim', 'shake-anim');
+            await delay(500);
+            
+            attackerEl.classList.remove('attack-anim-right', 'attack-anim-left');
+            defenderEl.classList.remove('damage-anim', 'shake-anim', 'critical-anim');
+            
+            if (crit) { showMessage('💥 Critical hit!'); await delay(400); }
+            if (eff > 1) { showMessage("✨ Super effective!"); await delay(400); }
+            else if (eff < 1 && eff > 0) { showMessage("😕 Not very effective..."); await delay(400); }
+            else if (eff === 0) { showMessage("❌ No effect!"); await delay(400); }
+            
+            updateBattleUI();
+        }
+        
+        function getTypeEffectiveness(moveType, defType) {
+            return typeChart[moveType]?.[defType] ?? 1;
+        }
+        
+        async function handleFaint(side) {
+            if (side === 'enemy') {
+                showMessage(`${enemyTeam[currentEnemyPokemon].name.toUpperCase()} fainted!`);
+                await delay(1000);
+                
+                const next = enemyTeam.findIndex((p, i) => i > currentEnemyPokemon && p.currentHp > 0);
+                if (next >= 0) {
+                    currentEnemyPokemon = next;
+                    showMessage(`Enemy sent out ${enemyTeam[currentEnemyPokemon].name.toUpperCase()}!`);
+                    updateBattleUI();
+                    if (gameMode !== 'online') { isPlayerTurn = true; disableMoves(false); }
+                } else {
+                    endBattle(true);
+                }
+            } else {
+                showMessage(`${playerTeam[currentPlayerPokemon].name.toUpperCase()} fainted!`);
+                await delay(1000);
+                
+                const alive = playerTeam.filter(p => p.currentHp > 0);
+                if (alive.length > 0) {
+                    openSwitchModal(true);
+                } else {
+                    endBattle(false);
+                }
+            }
+        }
+        
+        // ============== SWITCHING ==============
+        function switchPokemon() {
+            if (!isPlayerTurn && gameMode !== 'online') return;
+            openSwitchModal(false);
+        }
+        
+        function openSwitchModal(forced) {
+            const modal = document.getElementById('switch-modal');
+            const options = document.getElementById('switch-options');
+            
+            options.innerHTML = playerTeam.map((p, i) => {
+                if (p.currentHp <= 0) {
+                    return `<button disabled class="w-full py-3 glass-panel rounded-lg text-xs opacity-50 flex items-center gap-3">
+                        <img src="${p.sprite}" class="w-10 h-10 grayscale"><span class="capitalize">${p.name}</span>
+                        <span class="text-red-500 ml-auto">FAINTED</span></button>`;
+                }
+                if (i === currentPlayerPokemon) {
+                    return `<button disabled class="w-full py-3 glass-panel rounded-lg text-xs opacity-50 flex items-center gap-3">
+                        <img src="${p.sprite}" class="w-10 h-10"><span class="capitalize">${p.name}</span>
+                        <span class="text-blue-400 ml-auto">ACTIVE</span></button>`;
+                }
+                return `<button onclick="selectSwitch(${i}, ${forced})" class="w-full py-3 glass-panel rounded-lg text-xs flex items-center gap-3 hover:bg-white/20">
+                    <img src="${p.sprite}" class="w-10 h-10 pokemon-float"><span class="capitalize">${p.name}</span>
+                    <span class="text-green-400 ml-auto">${p.currentHp}/${p.maxHp}</span></button>`;
+            }).join('');
+            
+            modal.classList.remove('hidden');
+        }
+        
+        async function selectSwitch(index, forced) {
+            closeSwitchModal();
+            currentPlayerPokemon = index;
+            const newP = playerTeam[currentPlayerPokemon];
+            
+            showMessage(`Go, ${newP.name.toUpperCase()}!`);
+            updateBattleUI();
+            
+            if (gameMode === 'online') {
+                sendData({ type: 'switch', pokemonIndex: index });
+                if (forced) { isPlayerTurn = true; disableMoves(false); }
+            } else if (!forced) {
+                await delay(400);
+                const enemy = enemyTeam[currentEnemyPokemon];
+                const move = enemy.moves[Math.floor(Math.random() * enemy.moves.length)];
+                await performAttack(enemy, newP, move, 'enemy');
+                if (newP.currentHp <= 0) { await handleFaint('player'); return; }
+                isPlayerTurn = true;
+                disableMoves(false);
+            } else {
+                isPlayerTurn = true;
+                disableMoves(false);
+            }
+        }
+        
+        function handleOpponentSwitch(index) {
+            currentEnemyPokemon = index;
+            showMessage(`${opponentName} sent out ${enemyTeam[currentEnemyPokemon].name.toUpperCase()}!`);
+            updateBattleUI();
+            isPlayerTurn = true;
+            disableMoves(false);
+            setTimeout(() => showMessage('Your turn!'), 800);
+        }
+        
+        function closeSwitchModal() { document.getElementById('switch-modal').classList.add('hidden'); }
+        function disableMoves(d) { for (let i = 1; i <= 4; i++) document.getElementById(`move${i}`).disabled = d; }
+        function showMessage(m) { document.getElementById('battle-message').textContent = m; }
+        function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+        
+        function runAway() {
+            if (gameMode === 'online') {
+                if (confirm('Forfeit match?')) { sendData({ type: 'forfeit' }); endBattle(false); }
+            } else if (confirm('Run away?')) { battleInProgress = false; goToMenu(); }
+        }
+        
+        function endBattle(victory) {
+            battleInProgress = false;
+            
+            const xpAmount = victory 
+                ? (gameMode === 'online' ? XP_FOR_ONLINE_WIN : XP_FOR_WIN(saveData.level, aiDifficulty))
+                : XP_FOR_LOSS;
+            
+            const levelResult = addXP(xpAmount);
+            
+            if (victory) {
+                if (gameMode === 'online') saveData.onlineWins++;
+                else saveData.wins++;
+            } else {
+                if (gameMode === 'online') saveData.onlineLosses++;
+                else saveData.losses++;
+            }
+            
+            // Catch Pokemon on victory
+            let caughtPokemon = null;
+            if (victory) {
+                const caught = enemyTeam[Math.floor(Math.random() * enemyTeam.length)];
+                if (!saveData.collection.find(c => c.id === caught.id)) {
+                    saveData.collection.push({ id: caught.id, name: caught.name, sprite: caught.sprite });
+                    caughtPokemon = caught;
+                }
+            }
+            
+            saveGame();
+            
+            // Show result screen
+            document.getElementById('result-title').textContent = victory ? '🏆 VICTORY!' : '💔 DEFEAT';
+            document.getElementById('result-title').className = 'text-4xl mb-4 ' + (victory ? 'text-yellow-400' : 'text-red-500');
+            document.getElementById('result-message').textContent = victory 
+                ? (gameMode === 'online' ? `You defeated ${opponentName}!` : 'You won the battle!')
+                : 'Better luck next time...';
+            
+            document.getElementById('xp-earned').textContent = '+' + xpAmount + ' XP';
+            document.getElementById('result-xp-bar').style.width = (saveData.xp / XP_PER_LEVEL(saveData.level) * 100) + '%';
+            
+            const levelUpText = document.getElementById('level-up-text');
+            if (levelResult.leveledUp) {
+                levelUpText.classList.remove('hidden');
+                levelUpText.textContent = `🎉 LEVEL UP! ${levelResult.oldLevel} → ${levelResult.newLevel}`;
+            } else {
+                levelUpText.classList.add('hidden');
+            }
+            
+            const caughtDiv = document.getElementById('caught-pokemon');
+            if (caughtPokemon) {
+                caughtDiv.innerHTML = `
+                    <p class="text-green-400 text-sm mb-2">Caught:</p>
+                    <img src="${caughtPokemon.sprite}" class="w-20 h-20 mx-auto pokemon-float">
+                    <p class="capitalize text-yellow-300 text-sm">${caughtPokemon.name}</p>`;
+            } else {
+                caughtDiv.innerHTML = '';
+            }
+            
+            // Check for new unlocks
+            const newUnlocks = [];
+            for (const [tier, level] of Object.entries(tierUnlockLevels)) {
+                if (levelResult.leveledUp && saveData.level >= level && levelResult.oldLevel < level) {
+                    newUnlocks.push(tier);
+                }
+            }
+            
+            const unlocksDiv = document.getElementById('new-unlocks');
+            if (newUnlocks.length > 0) {
+                unlocksDiv.innerHTML = `<p class="text-purple-400 text-sm">🔓 Unlocked ${newUnlocks.join(', ')}-tier Pokémon!</p>`;
+            } else {
+                unlocksDiv.innerHTML = '';
+            }
+            
+            hideAllScreens();
+            document.getElementById('result-screen').classList.remove('hidden');
+            
+            if (connection) { connection.close(); connection = null; }
+        }
+        
+        function playAgain() {
+            document.getElementById('result-screen').classList.add('hidden');
+            playerTeam = [];
+            enemyTeam = [];
+            
+            if (gameMode === 'online') showOnlineLobby();
+            else if (gameMode === 'single') startSinglePlayer();
+            else startMultiplayer();
+        }
+        
+        // ============== POKÉDEX ==============
+        function showPokedex() {
+            hideAllScreens();
+            document.getElementById('pokedex-screen').classList.remove('hidden');
+            renderPokedex();
+        }
+        
+        function renderPokedex() {
+            const grid = document.getElementById('pokedex-grid');
+            const search = document.getElementById('pokedex-search').value.toLowerCase();
+            const gen = document.getElementById('pokedex-gen-filter').value;
+            
+            let filtered = allPokemon.filter(p => {
+                const matchSearch = p.name.includes(search) || p.id.toString().includes(search);
+                let matchGen = true;
+                if (gen !== 'all') {
+                    const [s, e] = genRanges[gen];
+                    matchGen = p.id >= s && p.id <= e;
+                }
+                return matchSearch && matchGen;
+            });
+            
+            document.getElementById('pokedex-count').textContent = `${filtered.length} / ${allPokemon.length}`;
+            
+            grid.innerHTML = filtered.map(p => {
+                const unlocked = isPokemonUnlocked(p);
+                const caught = saveData.collection.find(c => c.id === p.id);
+                return `
+                    <div onclick="showPokemonDetail(${p.id})" 
+                        class="pokemon-card glass-panel rounded-lg p-1 cursor-pointer text-center relative ${!unlocked ? 'locked-pokemon' : ''} ${caught ? 'ring-1 ring-green-400' : ''}">
+                        <span class="tier-badge" style="color:${tierColors[p.tier]}">${p.tier}</span>
+                        <img src="${p.sprite}" class="w-12 h-12 mx-auto" loading="lazy">
+                        <p class="text-gray-500" style="font-size:7px">#${String(p.id).padStart(3, '0')}</p>
+                        <p class="capitalize truncate" style="font-size:7px">${p.name}</p>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function searchPokedex() { renderPokedex(); }
+        function filterPokedexGen() { renderPokedex(); }
+        
+        function showPokemonDetail(id) {
+            const p = allPokemon.find(pk => pk.id === id);
+            selectedDetailPokemon = p;
+            const unlocked = isPokemonUnlocked(p);
+            
+            document.getElementById('detail-lock-status').innerHTML = unlocked 
+                ? '<span class="text-green-400">✓ Unlocked</span>' 
+                : `<span class="text-red-400">🔒 Unlock at Level ${tierUnlockLevels[p.tier]}</span>`;
+            document.getElementById('detail-sprite').src = p.sprite;
+            document.getElementById('detail-sprite').className = 'w-32 h-32 mx-auto ' + (unlocked ? 'pokemon-float' : 'locked-pokemon');
+            document.getElementById('detail-name').textContent = p.name.toUpperCase();
+            document.getElementById('detail-number').textContent = `#${String(p.id).padStart(3, '0')}`;
+            document.getElementById('detail-types').innerHTML = p.types.map(t => 
+                `<span class="px-2 py-1 rounded-full text-xs" style="background:${typeColors[t]}">${typeEmoji[t]} ${t}</span>`
+            ).join('');
+            document.getElementById('detail-tier').innerHTML = `<span style="color:${tierColors[p.tier]}">Tier ${p.tier}</span> • Total: ${p.total}`;
+            
+            const max = 255;
+            document.getElementById('detail-hp').textContent = p.stats.hp;
+            document.getElementById('detail-hp-bar').style.width = (p.stats.hp / max * 100) + '%';
+            document.getElementById('detail-atk').textContent = p.stats.attack;
+            document.getElementById('detail-atk-bar').style.width = (p.stats.attack / max * 100) + '%';
+            document.getElementById('detail-def').textContent = p.stats.defense;
+            document.getElementById('detail-def-bar').style.width = (p.stats.defense / max * 100) + '%';
+            document.getElementById('detail-spd').textContent = p.stats.speed;
+            document.getElementById('detail-spd-bar').style.width = (p.stats.speed / max * 100) + '%';
+            
+            document.getElementById('pokemon-detail').classList.remove('hidden');
+        }
+        
+        function closeDetail() { document.getElementById('pokemon-detail').classList.add('hidden'); }
+        
+        // ============== COLLECTION ==============
+        function showCollection() {
+            hideAllScreens();
+            document.getElementById('collection-screen').classList.remove('hidden');
+            
+            document.getElementById('stats-level').textContent = saveData.level;
+            document.getElementById('stats-xp').textContent = saveData.totalXp;
+            document.getElementById('stats-wins').textContent = saveData.wins;
+            document.getElementById('stats-online').textContent = saveData.onlineWins;
+            document.getElementById('stats-unlocked').textContent = getUnlockedPokemon().length;
+            
+            const grid = document.getElementById('collection-grid');
+            const empty = document.getElementById('empty-collection');
+            
+            if (saveData.collection.length === 0) {
+                grid.classList.add('hidden');
+                empty.classList.remove('hidden');
+            } else {
+                grid.classList.remove('hidden');
+                empty.classList.add('hidden');
+                grid.innerHTML = saveData.collection.map(c => {
+                    const p = allPokemon.find(pk => pk.id === c.id);
+                    return `
+                        <div onclick="showPokemonDetail(${c.id})" class="pokemon-card glass-panel rounded-lg p-1 cursor-pointer text-center">
+                            <img src="${c.sprite}" class="w-10 h-10 mx-auto pokemon-float" loading="lazy">
+                            <p class="capitalize truncate" style="font-size:6px">${c.name}</p>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+        
+        // ============== INITIALIZE ==============
+        loadPokemon();
+    </script>
+</body>
+</html>
