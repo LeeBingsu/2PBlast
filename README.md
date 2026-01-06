@@ -24,7 +24,7 @@ Skill select : ➡️
 Note : online playable right now (bugs)
 
 
-Made by [Bingsu](https://www.instagram.com/bingsuk_), NRS5
+Made by Bingsu, NRS5
 
 Idea by Bingsu, Shusak
 
@@ -33,5 +33,3 @@ Special thanks to 104
 [Music](https://www.youtube.com/watch?v=LzfXJV_EjXY)
 
 Any bugs report to me@bingsuk.kro.kr
-
-귀찮다ㅏㅏㅏㅏ
