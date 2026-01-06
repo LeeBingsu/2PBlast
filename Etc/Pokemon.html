@@ -56,6 +56,11 @@
     </style>
 </head>
 <body class="bg-pokemon-gradient min-h-screen text-white overflow-x-hidden">
+    <!-- Sound Toggle -->
+    <button id="mute-btn" onclick="SoundManager.toggleMute()" class="fixed top-4 right-4 z-[60] glass-panel w-10 h-10 rounded-full flex items-center justify-center text-green-400 hover:scale-110 transition text-lg">
+        🔊
+    </button>
+
     <!-- Loading Screen -->
     <div id="loading-screen" class="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center">
         <div class="pokeball-loader mb-8"></div>
@@ -471,6 +476,162 @@
     </div>
 
     <script>
+        // ============== SOUND MANAGER ==============
+        const SoundManager = {
+            ctx: null,
+            muted: false,
+            
+            init: function() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            },
+            
+            toggleMute: function() {
+                this.init();
+                this.muted = !this.muted;
+                const btn = document.getElementById('mute-btn');
+                btn.textContent = this.muted ? '🔇' : '🔊';
+                btn.classList.toggle('text-red-400');
+                btn.classList.toggle('text-green-400');
+                return this.muted;
+            },
+            
+            play: function(type) {
+                if (this.muted) return;
+                this.init();
+                
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                switch (type) {
+                    case 'click':
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(800, t);
+                        osc.frequency.exponentialRampToValueAtTime(400, t + 0.1);
+                        gain.gain.setValueAtTime(0.05, t); 
+                        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+                        osc.start(t);
+                        osc.stop(t + 0.1);
+                        break;
+                        
+                    case 'start':
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(200, t);
+                        osc.frequency.linearRampToValueAtTime(600, t + 0.6);
+                        gain.gain.setValueAtTime(0.05, t);
+                        gain.gain.linearRampToValueAtTime(0, t + 0.6);
+                        osc.start(t);
+                        osc.stop(t + 0.6);
+                        break;
+                        
+                    case 'attack':
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(400, t);
+                        osc.frequency.exponentialRampToValueAtTime(100, t + 0.2);
+                        gain.gain.setValueAtTime(0.05, t);
+                        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+                        osc.start(t);
+                        osc.stop(t + 0.2);
+                        break;
+                        
+                    case 'hit':
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(150, t);
+                        osc.frequency.exponentialRampToValueAtTime(50, t + 0.1);
+                        gain.gain.setValueAtTime(0.1, t);
+                        gain.gain.linearRampToValueAtTime(0, t + 0.1);
+                        osc.start(t);
+                        osc.stop(t + 0.1);
+                        break;
+                        
+                    case 'supereffective':
+                        this.playTone(600, 'triangle', 0.1, t);
+                        this.playTone(900, 'triangle', 0.1, t + 0.1);
+                        this.playTone(1200, 'triangle', 0.2, t + 0.2);
+                        break;
+                        
+                    case 'notvery':
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(200, t);
+                        osc.frequency.linearRampToValueAtTime(150, t + 0.3);
+                        gain.gain.setValueAtTime(0.1, t);
+                        gain.gain.linearRampToValueAtTime(0, t + 0.3);
+                        osc.start(t);
+                        osc.stop(t + 0.3);
+                        break;
+                        
+                    case 'faint':
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(300, t);
+                        osc.frequency.exponentialRampToValueAtTime(10, t + 1.0);
+                        gain.gain.setValueAtTime(0.1, t);
+                        gain.gain.linearRampToValueAtTime(0, t + 1.0);
+                        osc.start(t);
+                        osc.stop(t + 1.0);
+                        break;
+
+                    case 'run':
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(600, t);
+                        osc.frequency.linearRampToValueAtTime(200, t + 0.3);
+                        gain.gain.setValueAtTime(0.1, t);
+                        gain.gain.linearRampToValueAtTime(0, t + 0.3);
+                        osc.start(t);
+                        osc.stop(t + 0.3);
+                        break;
+                        
+                    case 'victory':
+                        this.playTone(523, 'square', 0.1, t);
+                        this.playTone(523, 'square', 0.1, t + 0.1);
+                        this.playTone(523, 'square', 0.1, t + 0.2);
+                        this.playTone(523, 'square', 0.3, t + 0.3);
+                        this.playTone(415, 'square', 0.3, t + 0.6);
+                        this.playTone(466, 'square', 0.3, t + 0.9);
+                        this.playTone(523, 'square', 0.6, t + 1.2);
+                        break;
+                        
+                    case 'defeat':
+                        this.playTone(392, 'sawtooth', 0.4, t);
+                        this.playTone(370, 'sawtooth', 0.4, t + 0.4);
+                        this.playTone(349, 'sawtooth', 0.4, t + 0.8);
+                        this.playTone(330, 'sawtooth', 1.0, t + 1.2);
+                        break;
+                        
+                    case 'levelup':
+                        this.playTone(1046, 'sine', 0.1, t);
+                        this.playTone(1318, 'sine', 0.1, t + 0.1);
+                        this.playTone(1568, 'sine', 0.1, t + 0.2);
+                        this.playTone(2093, 'sine', 0.4, t + 0.3);
+                        break;
+                }
+            },
+            
+            playTone: function(freq, type, duration, startTime) {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, startTime);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                gain.gain.setValueAtTime(0.05, startTime);
+                gain.gain.linearRampToValueAtTime(0, startTime + duration);
+                osc.start(startTime);
+                osc.stop(startTime + duration);
+            }
+        };
+
+        // Initialize audio on first click
+        window.addEventListener('click', () => SoundManager.init(), { once: true });
+
         // ============== GAME CONFIG ==============
         const TOTAL_POKEMON = 905; // Gen 1-8
         const BATCH_SIZE = 100;
@@ -966,6 +1127,7 @@
         }
         
         function goToMenu() {
+            SoundManager.play('click');
             hideAllScreens();
             document.getElementById('main-menu').classList.remove('hidden');
             playerTeam = [];
@@ -982,6 +1144,7 @@
         
         // ============== GAME MODES ==============
         function startSinglePlayer() {
+            SoundManager.play('click');
             gameMode = 'single';
             aiDifficulty = Math.min(Math.floor(saveData.level / 5) + 1, 10);
             showTeamSelect('SELECT YOUR TEAM');
@@ -991,6 +1154,7 @@
         }
         
         function startMultiplayer() {
+            SoundManager.play('click');
             gameMode = 'multi';
             showTeamSelect('PLAYER 1: SELECT TEAM');
             document.getElementById('ai-difficulty-display').classList.add('hidden');
@@ -1056,6 +1220,7 @@
         function searchPokemon() { renderPokemonGrid(); }
         
         function togglePokemonSelect(id) {
+            SoundManager.play('click');
             const pokemon = allPokemon.find(p => p.id === id);
             const idx = playerTeam.findIndex(p => p.id === id);
             
@@ -1130,6 +1295,7 @@
         
         // ============== BATTLE SYSTEM ==============
         function startBattle() {
+            SoundManager.play('start');
             currentPlayerPokemon = 0;
             currentEnemyPokemon = 0;
             battleInProgress = true;
@@ -1144,6 +1310,7 @@
         }
         
         function startOnlineBattle() {
+            SoundManager.play('start');
             gameMode = 'online';
             currentPlayerPokemon = 0;
             currentEnemyPokemon = 0;
@@ -1277,6 +1444,7 @@
         }
         
         async function performAttack(attacker, defender, move, side) {
+            SoundManager.play('attack');
             showMessage(`${attacker.name.toUpperCase()} used ${typeEmoji[move.type] || '💥'} ${move.name}!`);
             
             const attackerEl = document.getElementById(side === 'player' ? 'player-pokemon' : 'enemy-pokemon');
@@ -1293,16 +1461,32 @@
             
             defender.currentHp = Math.max(0, defender.currentHp - damage);
             
+            SoundManager.play('hit');
             defenderEl.classList.add(crit ? 'critical-anim' : 'damage-anim', 'shake-anim');
             await delay(500);
             
             attackerEl.classList.remove('attack-anim-right', 'attack-anim-left');
             defenderEl.classList.remove('damage-anim', 'shake-anim', 'critical-anim');
             
-            if (crit) { showMessage('💥 Critical hit!'); await delay(400); }
-            if (eff > 1) { showMessage("✨ Super effective!"); await delay(400); }
-            else if (eff < 1 && eff > 0) { showMessage("😕 Not very effective..."); await delay(400); }
-            else if (eff === 0) { showMessage("❌ No effect!"); await delay(400); }
+            if (crit) { 
+                SoundManager.play('supereffective'); 
+                showMessage('💥 Critical hit!'); 
+                await delay(400); 
+            }
+            
+            if (eff > 1) { 
+                SoundManager.play('supereffective');
+                showMessage("✨ Super effective!"); 
+                await delay(400); 
+            } else if (eff < 1 && eff > 0) { 
+                SoundManager.play('notvery');
+                showMessage("😕 Not very effective..."); 
+                await delay(400); 
+            } else if (eff === 0) { 
+                SoundManager.play('notvery');
+                showMessage("❌ No effect!"); 
+                await delay(400); 
+            }
             
             updateBattleUI();
         }
@@ -1312,6 +1496,7 @@
         }
         
         async function handleFaint(side) {
+            SoundManager.play('faint');
             if (side === 'enemy') {
                 showMessage(`${enemyTeam[currentEnemyPokemon].name.toUpperCase()} fainted!`);
                 await delay(1000);
@@ -1407,6 +1592,7 @@
         function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
         
         function runAway() {
+            SoundManager.play('run');
             if (gameMode === 'online') {
                 if (confirm('Forfeit match?')) { sendData({ type: 'forfeit' }); endBattle(false); }
             } else if (confirm('Run away?')) { battleInProgress = false; goToMenu(); }
@@ -1414,12 +1600,14 @@
         
         function endBattle(victory) {
             battleInProgress = false;
+            SoundManager.play(victory ? 'victory' : 'defeat');
             
             const xpAmount = victory 
                 ? (gameMode === 'online' ? XP_FOR_ONLINE_WIN : XP_FOR_WIN(saveData.level, aiDifficulty))
                 : XP_FOR_LOSS;
             
             const levelResult = addXP(xpAmount);
+            if (levelResult.leveledUp) SoundManager.play('levelup');
             
             if (victory) {
                 if (gameMode === 'online') saveData.onlineWins++;
@@ -1610,4 +1798,4 @@
         loadPokemon();
     </script>
 </body>
-</html>
+                </html>
