@@ -649,8 +649,8 @@
         
         // XP system
         const XP_PER_LEVEL = level => Math.floor(100 * Math.pow(1.5, level - 1));
-        const XP_FOR_WIN = (playerLevel, aiLevel) => Math.floor(50 + (aiLevel * 10) + (playerLevel * 5));
-        const XP_FOR_ONLINE_WIN = 150;
+        const XP_FOR_WIN = (playerLevel, aiLevel) => Math.floor(500 + (aiLevel * 10) + (playerLevel * 10));
+        const XP_FOR_ONLINE_WIN = 750;
         const XP_FOR_LOSS = 25;
         
         // ============== GAME STATE ==============
