@@ -98,7 +98,7 @@
                 ⚔️ SINGLE PLAYER
             </button>
             <button onclick="startMultiplayer()" class="glass-panel py-4 px-8 rounded-xl text-blue-300 hover:bg-blue-500/20 transition text-sm">
-                🕹 CUSTOM SINGLEPLAYER
+                👥 LOCAL MULTIPLAYER
             </button>
             <button onclick="showOnlineLobby()" class="glass-panel py-4 px-8 rounded-xl text-green-300 hover:bg-green-500/20 transition text-sm flex items-center justify-center gap-2">
                 🌐 ONLINE BATTLE
@@ -968,6 +968,7 @@
             
             conn.on('open', () => {
                 waitingForOpponent = false;
+                gameMode = 'online'; // Set game mode to online
                 document.getElementById('waiting-room').classList.add('hidden');
                 document.getElementById('online-chat').classList.remove('hidden');
                 
@@ -976,7 +977,8 @@
                 
                 setTimeout(() => {
                     document.getElementById('online-lobby').classList.add('hidden');
-                    showTeamSelect('SELECT YOUR TEAM');
+                    document.getElementById('ai-difficulty-display').classList.add('hidden');
+                    showOnlineTeamSelect();
                 }, 1000);
             });
         }
@@ -993,7 +995,13 @@
             });
         }
         
+        // Online battle state
+        let onlineReady = false;
+        let opponentReady = false;
+        let waitingForOpponentAction = false;
+        
         function handleReceivedData(data) {
+            console.log('Received:', data);
             switch (data.type) {
                 case 'trainer-info':
                     opponentName = data.name;
@@ -1004,18 +1012,36 @@
                     addChatMessage(opponentName, data.message);
                     break;
                 case 'team-ready':
-                    enemyTeam = data.team.map(p => ({ ...allPokemon.find(pk => pk.id === p.id), currentHp: p.currentHp, maxHp: p.maxHp }));
-                    if (playerTeam.length === 3) startOnlineBattle();
+                    // Receive opponent's team
+                    enemyTeam = data.team.map(p => {
+                        const pokemon = allPokemon.find(pk => pk.id === p.id);
+                        return { ...pokemon, currentHp: p.currentHp, maxHp: p.maxHp };
+                    });
+                    opponentReady = true;
+                    addChatMessage('System', `${opponentName} is ready!`);
+                    
+                    // Check if both players are ready
+                    if (onlineReady && opponentReady) {
+                        setTimeout(() => startOnlineBattle(), 500);
+                    }
                     break;
                 case 'move':
-                    handleOpponentMove(data.moveIndex);
+                    // Opponent attacked us
+                    handleOpponentMove(data.moveIndex, data.damage, data.crit, data.effectiveness);
                     break;
                 case 'switch':
                     handleOpponentSwitch(data.pokemonIndex);
                     break;
+                case 'pokemon-fainted':
+                    // Opponent's pokemon fainted, update our view
+                    handleOpponentPokemonFainted(data.newPokemonIndex);
+                    break;
                 case 'forfeit':
                     showMessage(`${opponentName} forfeited!`);
                     setTimeout(() => endBattle(true), 1500);
+                    break;
+                case 'battle-end':
+                    // Opponent acknowledges battle ended
                     break;
             }
         }
@@ -1079,13 +1105,15 @@
             connection.on('open', () => {
                 document.getElementById('connection-status').classList.add('hidden');
                 document.getElementById('online-chat').classList.remove('hidden');
+                gameMode = 'online'; // Set game mode to online
                 setupConnectionHandlers();
                 sendData({ type: 'trainer-info', name: saveData.trainerName, level: saveData.level });
                 addChatMessage('System', 'Connected!');
                 
                 setTimeout(() => {
                     document.getElementById('online-lobby').classList.add('hidden');
-                    showTeamSelect('SELECT YOUR TEAM');
+                    document.getElementById('ai-difficulty-display').classList.add('hidden');
+                    showOnlineTeamSelect();
                 }, 1000);
             });
             
@@ -1165,6 +1193,19 @@
             document.getElementById('team-select').classList.remove('hidden');
             document.getElementById('team-select-title').textContent = title;
             playerTeam = [];
+            renderPokemonGrid();
+            updateTeamDisplay();
+        }
+        
+        function showOnlineTeamSelect() {
+            hideAllScreens();
+            onlineReady = false;
+            opponentReady = false;
+            enemyTeam = [];
+            playerTeam = [];
+            document.getElementById('team-select').classList.remove('hidden');
+            document.getElementById('team-select-title').textContent = 'SELECT YOUR TEAM (ONLINE)';
+            document.getElementById('ai-difficulty-display').classList.add('hidden');
             renderPokemonGrid();
             updateTeamDisplay();
         }
@@ -1250,14 +1291,18 @@
         
         function confirmTeamSelection() {
             if (gameMode === 'online') {
+                // Send our team to opponent
+                onlineReady = true;
                 sendData({ type: 'team-ready', team: playerTeam.map(p => ({ id: p.id, currentHp: p.currentHp, maxHp: p.maxHp })) });
-                if (enemyTeam.length === 3) {
-                    startOnlineBattle();
+                addChatMessage('System', 'You are ready!');
+                
+                // Check if opponent already sent their team
+                if (opponentReady && enemyTeam.length >= 1) {
+                    setTimeout(() => startOnlineBattle(), 500);
                 } else {
-                    hideAllScreens();
-                    document.getElementById('online-lobby').classList.remove('hidden');
-                    document.getElementById('connection-status').classList.remove('hidden');
-                    document.getElementById('connection-message').textContent = 'Waiting for opponent...';
+                    // Show waiting screen
+                    document.getElementById('start-battle-btn').textContent = 'WAITING FOR OPPONENT...';
+                    document.getElementById('start-battle-btn').disabled = true;
                 }
             } else if (gameMode === 'multi' && enemyTeam.length === 0) {
                 enemyTeam = [...playerTeam];
@@ -1315,6 +1360,9 @@
             currentPlayerPokemon = 0;
             currentEnemyPokemon = 0;
             battleInProgress = true;
+            waitingForOpponentAction = false;
+            
+            // Host goes first
             isPlayerTurn = isHost;
             
             hideAllScreens();
@@ -1323,8 +1371,16 @@
             document.getElementById('opponent-name').textContent = opponentName;
             
             updateBattleUI();
-            showMessage(isPlayerTurn ? 'Your turn!' : `Waiting for ${opponentName}...`);
-            disableMoves(!isPlayerTurn);
+            
+            if (isPlayerTurn) {
+                showMessage('Your turn! Choose an attack.');
+                disableMoves(false);
+            } else {
+                showMessage(`Waiting for ${opponentName}...`);
+                disableMoves(true);
+            }
+            
+            addChatMessage('System', 'Battle started! ' + (isHost ? 'You go first!' : `${opponentName} goes first!`));
         }
         
         function updateBattleUI() {
@@ -1384,9 +1440,26 @@
             isPlayerTurn = false;
             disableMoves(true);
             
-            if (gameMode === 'online') sendData({ type: 'move', moveIndex });
+            // Calculate damage
+            const eff = getTypeEffectiveness(move.type, enemy.types[0]);
+            const crit = Math.random() < 0.1;
+            const critMult = crit ? 1.5 : 1;
+            const baseDmg = Math.floor((move.power * (player.stats.attack / enemy.stats.defense)) / 4);
+            const damage = Math.max(1, Math.floor(baseDmg * eff * critMult * (0.85 + Math.random() * 0.15)));
             
-            await performAttack(player, enemy, move, 'player');
+            if (gameMode === 'online') {
+                // Send move with calculated damage to opponent
+                sendData({ 
+                    type: 'move', 
+                    moveIndex, 
+                    damage,
+                    crit,
+                    effectiveness: eff
+                });
+            }
+            
+            // Perform attack animation and apply damage
+            await performAttackWithDamage(player, enemy, move, 'player', damage, crit, eff);
             
             if (enemy.currentHp <= 0) {
                 await handleFaint('enemy');
@@ -1414,7 +1487,14 @@
                     bestMove = enemy.moves[Math.floor(Math.random() * enemy.moves.length)];
                 }
                 
-                await performAttack(enemy, player, bestMove, 'enemy');
+                // Calculate AI damage
+                const aiEff = getTypeEffectiveness(bestMove.type, player.types[0]);
+                const aiCrit = Math.random() < 0.1;
+                const aiCritMult = aiCrit ? 1.5 : 1;
+                const aiBaseDmg = Math.floor((bestMove.power * (enemy.stats.attack / player.stats.defense)) / 4);
+                const aiDamage = Math.max(1, Math.floor(aiBaseDmg * aiEff * aiCritMult * (0.85 + Math.random() * 0.15)));
+                
+                await performAttackWithDamage(enemy, player, bestMove, 'enemy', aiDamage, aiCrit, aiEff);
                 
                 if (player.currentHp <= 0) {
                     await handleFaint('player');
@@ -1426,24 +1506,46 @@
             }
         }
         
-        async function handleOpponentMove(moveIndex) {
+        async function handleOpponentMove(moveIndex, damage, crit, effectiveness) {
+            if (!battleInProgress) return;
+            
             const player = playerTeam[currentPlayerPokemon];
             const enemy = enemyTeam[currentEnemyPokemon];
             const move = enemy.moves[moveIndex];
             
-            await performAttack(enemy, player, move, 'enemy');
+            // Opponent attacks us - we receive the damage they calculated
+            await performAttackWithDamage(enemy, player, move, 'enemy', damage, crit, effectiveness);
             
             if (player.currentHp <= 0) {
                 await handleFaint('player');
                 return;
             }
             
+            // Now it's our turn
             isPlayerTurn = true;
             disableMoves(false);
             showMessage('Your turn!');
         }
         
+        async function handleOpponentPokemonFainted(newPokemonIndex) {
+            if (newPokemonIndex >= 0 && newPokemonIndex < enemyTeam.length) {
+                currentEnemyPokemon = newPokemonIndex;
+                showMessage(`${opponentName} sent out ${enemyTeam[currentEnemyPokemon].name.toUpperCase()}!`);
+                updateBattleUI();
+            }
+        }
+        
         async function performAttack(attacker, defender, move, side) {
+            const eff = getTypeEffectiveness(move.type, defender.types[0]);
+            const crit = Math.random() < 0.1;
+            const critMult = crit ? 1.5 : 1;
+            const baseDmg = Math.floor((move.power * (attacker.stats.attack / defender.stats.defense)) / 4);
+            const damage = Math.max(1, Math.floor(baseDmg * eff * critMult * (0.85 + Math.random() * 0.15)));
+            
+            await performAttackWithDamage(attacker, defender, move, side, damage, crit, eff);
+        }
+        
+        async function performAttackWithDamage(attacker, defender, move, side, damage, crit, eff) {
             SoundManager.play('attack');
             showMessage(`${attacker.name.toUpperCase()} used ${typeEmoji[move.type] || '💥'} ${move.name}!`);
             
@@ -1453,12 +1555,7 @@
             attackerEl.classList.add(side === 'player' ? 'attack-anim-right' : 'attack-anim-left');
             await delay(250);
             
-            const eff = getTypeEffectiveness(move.type, defender.types[0]);
-            const crit = Math.random() < 0.1;
-            const critMult = crit ? 1.5 : 1;
-            const baseDmg = Math.floor((move.power * (attacker.stats.attack / defender.stats.defense)) / 4);
-            const damage = Math.max(1, Math.floor(baseDmg * eff * critMult * (0.85 + Math.random() * 0.15)));
-            
+            // Apply damage
             defender.currentHp = Math.max(0, defender.currentHp - damage);
             
             SoundManager.play('hit');
@@ -1501,13 +1598,19 @@
                 showMessage(`${enemyTeam[currentEnemyPokemon].name.toUpperCase()} fainted!`);
                 await delay(1000);
                 
-                const next = enemyTeam.findIndex((p, i) => i > currentEnemyPokemon && p.currentHp > 0);
+                // Find next alive enemy
+                const next = enemyTeam.findIndex((p, i) => i !== currentEnemyPokemon && p.currentHp > 0);
                 if (next >= 0) {
                     currentEnemyPokemon = next;
-                    showMessage(`Enemy sent out ${enemyTeam[currentEnemyPokemon].name.toUpperCase()}!`);
+                    const enemyName = gameMode === 'online' ? opponentName : 'Enemy';
+                    showMessage(`${enemyName} sent out ${enemyTeam[currentEnemyPokemon].name.toUpperCase()}!`);
                     updateBattleUI();
-                    if (gameMode !== 'online') { isPlayerTurn = true; disableMoves(false); }
+                    
+                    // In online mode, still our turn after knocking out opponent's pokemon
+                    isPlayerTurn = true;
+                    disableMoves(false);
                 } else {
+                    // All enemy pokemon fainted - we win!
                     endBattle(true);
                 }
             } else {
@@ -1518,6 +1621,7 @@
                 if (alive.length > 0) {
                     openSwitchModal(true);
                 } else {
+                    // All our pokemon fainted - we lose
                     endBattle(false);
                 }
             }
@@ -1798,4 +1902,4 @@
         loadPokemon();
     </script>
 </body>
-                </html>
+</html>
