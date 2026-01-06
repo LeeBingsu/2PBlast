@@ -3,9 +3,11 @@
 [ X // Shift ] - Go Back
 [ Arrow Keys ] - Move soul in Achievements Menu
 
+
 ~~ Instructions (Cutscene) ~~
 [ Z // Enter ] - Advance Text
 [ X // Shift ] - Skip Text
+
 
 ~~ Instructions (Battle) ~~
 [ Arrow Keys ] - Move Soul
@@ -13,7 +15,8 @@
 [ X // Shift ] - Skip Text // Cancel
 [ Z // Enter Tap ] - Fire a small shot
 [ Hold Z // Enter and Release ] - Fire a BIG SHOT
--=-✰-=-✰-=-✰-=-✰-=-✰-=-✰-=-✰-=-✰-=-✰-=-✰-=-✰-=-
+
+
 ~~ Options ~~
 This game has many different options, and I'll give you a quick explanation of what each option does:
 
