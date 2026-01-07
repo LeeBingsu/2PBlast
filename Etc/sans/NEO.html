@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spamton NEO - Game Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --spamton-pink: #ff66ff;
+            --spamton-yellow: #ffff00;
+            --spamton-green: #00ff00;
+        }
+
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .pixel-border {
+            border: 4px solid #fff;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+        }
+
+        .neo-gradient-text {
+            background: linear-gradient(90deg, var(--spamton-pink), var(--spamton-yellow));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .section-card {
+            background: rgba(20, 20, 20, 0.8);
+            border: 2px solid #333;
+            padding: 20px;
+            transition: all 0.2s;
+        }
+
+        .section-card:hover {
+            border-color: var(--spamton-pink);
+            transform: scale(1.01);
+        }
+
+        .key-badge {
+            display: inline-block;
+            background: #fff;
+            color: #000;
+            padding: 4px 8px;
+            margin: 2px;
+            border-radius: 2px;
+            font-size: 10px;
+        }
+
+        .option-item {
+            border-left: 3px solid var(--spamton-yellow);
+            padding-left: 15px;
+            margin-bottom: 20px;
+        }
+
+        .option-title {
+            color: var(--spamton-yellow);
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .play-button {
+            background: #fff;
+            color: #000;
+            padding: 15px 30px;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s;
+            border: 4px solid #fff;
+        }
+
+        .play-button:hover {
+            background: transparent;
+            color: #fff;
+            box-shadow: 0 0 20px var(--spamton-pink);
+            border-color: var(--spamton-pink);
+        }
+
+        /* Glitch Effect Animation */
+        @keyframes glitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0); }
+        }
+
+        .glitch-hover:hover {
+            animation: glitch 0.3s infinite;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-4xl mx-auto space-y-12">
+        
+        <!-- Header Section -->
+        <header class="text-center py-10 space-y-6">
+            <h1 class="text-3xl md:text-5xl neo-gradient-text glitch-hover">SPAMTON NEO</h1>
+            <p class="text-gray-400">[[BIG SHOT]] INSTRUCTIONS & OPTIONS</p>
+            
+            <div class="pt-6">
+                <a href="https://2pblast.kro.kr/Etc/sans/Spamton_NEO.html" target="_blank" class="play-button glitch-hover">
+                    [ 게임으로 이동하기 ]
+                </a>
+            </div>
+        </header>
+
+        <!-- Instructions Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Menu -->
+            <div class="section-card pixel-border">
+                <h2 class="text-blue-400 mb-4 underline">MENU</h2>
+                <ul class="space-y-3 text-[10px]">
+                    <li><span class="key-badge">L-Click</span> Select Option</li>
+                    <li><span class="key-badge">X / Shift</span> Go Back</li>
+                    <li><span class="key-badge">Arrows</span> Move Soul</li>
+                </ul>
+            </div>
+
+            <!-- Cutscene -->
+            <div class="section-card pixel-border">
+                <h2 class="text-green-400 mb-4 underline">CUTSCENE</h2>
+                <ul class="space-y-3 text-[10px]">
+                    <li><span class="key-badge">Z / Enter</span> Advance</li>
+                    <li><span class="key-badge">X / Shift</span> Skip Text</li>
+                </ul>
+            </div>
+
+            <!-- Battle -->
+            <div class="section-card pixel-border">
+                <h2 class="text-red-500 mb-4 underline">BATTLE</h2>
+                <ul class="space-y-3 text-[10px]">
+                    <li><span class="key-badge">Arrows</span> Move Soul</li>
+                    <li><span class="key-badge">Z / Enter</span> Confirm / Fire</li>
+                    <li><span class="key-badge">X / Shift</span> Cancel / Skip</li>
+                    <li><span class="key-badge text-yellow-500">Hold Z</span> [[BIG SHOT]]</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Options Section -->
+        <section class="section-card pixel-border">
+            <h2 class="text-xl text-center mb-10 neo-gradient-text">[[SETTINGS & OPTIONS]]</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
+                
+                <div class="option-item">
+                    <span class="option-title">[Display pressed Keys]</span>
+                    <p class="text-[10px] text-gray-400">화면 좌측 상단에 현재 입력 중인 키를 표시합니다.</p>
+                </div>
+
+                <div class="option-item">
+                    <span class="option-title text-red-400">[Allow BIG SHOT glitch]</span>
+                    <p class="text-[10px] text-gray-400">활성화 시 [[BIG SHOTS]]을 난사할 수 있습니다. 비활성화 시 스팸톤이 격분하면 난사가 제한됩니다.</p>
+                </div>
+
+                <div class="option-item">
+                    <span class="option-title">[Allow spam]</span>
+                    <p class="text-[10px] text-gray-400">일반 공격 난사 허용 여부를 설정합니다.</p>
+                </div>
+
+                <div class="option-item">
+                    <span class="option-title text-red-600">[Allow ENRAGED mode]</span>
+                    <p class="text-[10px] text-gray-400">BIG SHOT 난사 시 스팸톤의 공격이 더 어려워지는 격분 모드 활성화 여부입니다.</p>
+                </div>
+
+                <div class="option-item">
+                    <span class="option-title">[Camera shake]</span>
+                    <p class="text-[10px] text-gray-400">화면 흔들림 효과를 설정합니다.</p>
+                </div>
+
+                <div class="option-item">
+                    <span class="option-title">[Show hitboxes]</span>
+                    <p class="text-[10px] text-gray-400">영혼(SOUL)의 히트박스를 표시합니다.</p>
+                </div>
+
+                <div class="option-item">
+                    <span class="option-title">[Distractions]</span>
+                    <p class="text-[10px] text-gray-400">활성화 시 스팸톤의 턴 동안 배경과 HUD가 흐려져 집중력을 높입니다.</p>
+                </div>
+
+                <div class="option-item">
+                    <span class="option-title">[Portuguese]</span>
+                    <p class="text-[10px] text-gray-400">언어를 포르투갈어로 변경합니다.</p>
+                </div>
+
+                <div class="option-item">
+                    <span class="option-title text-green-400">[Casual Mode]</span>
+                    <p class="text-[10px] text-gray-400">아이템 개선, 데미지 감소, 연사 속도 증가 등 난이도를 낮춥니다.</p>
+                </div>
+
+                <div class="option-item">
+                    <span class="option-title">[No-Vibe Mode]</span>
+                    <p class="text-[10px] text-gray-400">분위기를 깨는(?) 다른 배경음악으로 변경합니다.</p>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="text-center py-10 opacity-50 text-[10px]">
+            <p>NOW'S YOUR CHANCE TO BE A [[BIG SHOT]]!!</p>
+        </footer>
+
+    </div>
+
+</body>
+</html>
+
