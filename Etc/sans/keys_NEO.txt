@@ -1,3 +1,6 @@
+<게임은 다른 탭에 실행되었습니다.>
+
+
 ~~ Instructions (Menu) ~~
 [ Left Click ] - Select an Option
 [ X // Shift ] - Go Back
