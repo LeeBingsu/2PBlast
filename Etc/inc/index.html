@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incredibox Mod Gallery</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Oswald:wght@500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #0a0a0a;
+            color: #e0e0e0;
+            font-family: 'Inter', sans-serif;
+            background-image: radial-gradient(circle at 50% 50%, #1a1a1a 0%, #0a0a0a 100%);
+        }
+
+        .font-oswald {
+            font-family: 'Oswald', sans-serif;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .glass-card:hover {
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-10px);
+            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .btn-play {
+            background: linear-gradient(90deg, #ff0055, #ff00aa);
+            transition: all 0.3s ease;
+        }
+
+        .btn-play:hover {
+            filter: brightness(1.2);
+            box-shadow: 0 0 15px rgba(255, 0, 85, 0.6);
+        }
+
+        .grid-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: -1;
+        }
+
+        .category-badge {
+            font-size: 0.65rem;
+            padding: 2px 8px;
+            border-radius: 99px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="grid-bg"></div>
+
+    <div class="max-w-6xl mx-auto px-6 py-16">
+        <!-- Header -->
+        <header class="text-center mb-20">
+            <h1 class="font-oswald text-6xl md:text-8xl mb-4 tracking-tighter italic uppercase text-white">
+                Incredibox <span class="text-transparent" style="-webkit-text-stroke: 1px white;">Mods</span>
+            </h1>
+            <p class="text-gray-400 max-w-2xl mx-auto text-sm md:text-base">
+                Explore a collection of unique community-made music experiences. From memes to official-style demos, create your own rhythm.
+            </p>
+        </header>
+
+        <!-- Game Grid -->
+        <div id="game-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <!-- Cards will be generated here -->
+        </div>
+
+        <!-- Footer -->
+        <footer class="mt-24 text-center border-t border-gray-800 pt-10 text-gray-600 text-xs">
+            <p>&copy; 2026 Incredibox Mod Collection. Built for beatmakers.</p>
+        </footer>
+    </div>
+
+    <script>
+        const baseUrl = "https://2pblast.kro.kr/etc/inc/";
+        const games = [
+            { title: "Rave", file: "Incredibox-Rave.html", type: "Rave" },
+            { title: "KAJTEK MEME", file: "KAJTEK-MEME.html", type: "Meme" },
+            { title: "Choir", file: "Incredibox-Choir.html", type: "Vocal" },
+            { title: "Minecraft Remix", file: "incredibox-Minecraft-remix.html", type: "Gaming" },
+            { title: "Doorsbox V2", file: "Doorsbox-V2_Here-I-Come.html", type: "Horror", subtitle: "Here I Come" },
+            { title: "Doorsbox V1", file: "Doorsbox-V1_Guiding-Light.html", type: "Horror", subtitle: "Guiding Light" },
+            { title: "Kochari", file: "Incredibox-Kochari-Official-demo.html", type: "Demo", subtitle: "Official Demo" },
+            { title: "Ghosts 'n' Stuff", file: "Incredibox-Ghosts-n-Stuff-Official-demo.html", type: "Demo", subtitle: "Official Demo" }
+        ];
+
+        const grid = document.getElementById('game-grid');
+
+        games.forEach(game => {
+            const card = document.createElement('div');
+            card.className = 'glass-card rounded-2xl p-6 flex flex-col justify-between';
+            
+            card.innerHTML = `
+                <div>
+                    <span class="category-badge text-gray-400 mb-4 inline-block">${game.type}</span>
+                    <h3 class="font-oswald text-2xl text-white leading-tight mb-1">${game.title}</h3>
+                    ${game.subtitle ? `<p class="text-xs text-gray-500 mb-6 italic">${game.subtitle}</p>` : '<div class="mb-6"></div>'}
+                </div>
+                <div class="mt-auto">
+                    <a href="${baseUrl}${game.file}" target="_blank" class="btn-play w-full text-center py-3 rounded-lg text-white font-bold text-xs uppercase tracking-widest block">
+                        Play Now
+                    </a>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    </script>
+</body>
+</html>
+
