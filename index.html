@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>2PBlast</title>
-    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
-    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👾</text></svg>"
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👾</text></svg>">
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome -->
@@ -53,6 +54,13 @@
         
         /* Smooth Scrolling */
         html { scroll-behavior: smooth; }
+        
+        /* Image Pixelation fix */
+        .pixelated {
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-white font-sans-kr selection:bg-pink-500 selection:text-white">
@@ -79,7 +87,6 @@
 
     <!-- Hero Section -->
     <section id="home" class="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
-        <!-- Background Elements -->
         <div class="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 opacity-20">
             <div class="absolute top-10 left-10 w-32 h-32 bg-cyan-500 rounded-full blur-[100px]"></div>
             <div class="absolute bottom-10 right-10 w-64 h-64 bg-pink-500 rounded-full blur-[120px]"></div>
@@ -103,7 +110,6 @@
                 </a>
             </div>
 
-            <!-- Main Screenshot Frame -->
             <div class="mt-16 relative max-w-4xl mx-auto neon-box rounded-lg overflow-hidden border border-gray-700 bg-black">
                 <div class="absolute top-0 left-0 w-full h-8 bg-gray-800 flex items-center px-2 space-x-2">
                     <div class="w-3 h-3 rounded-full bg-red-500"></div>
@@ -125,20 +131,19 @@
             <h2 class="text-3xl font-retro text-center mb-12 text-cyan-400"><i class="fa-solid fa-keyboard mr-3"></i>CONTROLS</h2>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16">
-                <!-- Player 1 Card -->
+                <!-- Player 1 -->
                 <div class="bg-gray-900 border border-cyan-500/30 p-8 rounded-xl shadow-lg relative overflow-hidden group hover:border-cyan-500 transition-colors">
                     <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                         <i class="fa-solid fa-user text-9xl text-cyan-400"></i>
                     </div>
                     <h3 class="text-2xl font-retro text-cyan-400 mb-6">PLAYER 1</h3>
-                    
                     <div class="space-y-6">
                         <div class="flex items-center justify-between">
                             <span class="text-gray-300 font-bold">이동 (Move)</span>
                             <div class="flex flex-col items-center">
                                 <div class="keycap mb-1">W</div>
                                 <div>
-                                    <span class="keycap">A</span> <!-- Left is mostly movement in games, but README says Skill is A. Visualizing README strictly. -->
+                                    <span class="keycap">A</span>
                                     <span class="keycap">S</span>
                                     <span class="keycap">D</span>
                                 </div>
@@ -159,13 +164,12 @@
                     </div>
                 </div>
 
-                <!-- Player 2 Card -->
+                <!-- Player 2 -->
                 <div class="bg-gray-900 border border-pink-500/30 p-8 rounded-xl shadow-lg relative overflow-hidden group hover:border-pink-500 transition-colors">
                     <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                         <i class="fa-solid fa-user-group text-9xl text-pink-500"></i>
                     </div>
                     <h3 class="text-2xl font-retro text-pink-500 mb-6">PLAYER 2</h3>
-                    
                     <div class="space-y-6">
                         <div class="flex items-center justify-between">
                             <span class="text-gray-300 font-bold">이동 (Move)</span>
@@ -205,13 +209,12 @@
         </div>
     </section>
 
-    <!-- Arcade Section (Other Games) -->
+    <!-- Arcade Section -->
     <section id="arcade" class="py-20">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 class="text-3xl font-retro text-center mb-4 text-purple-400">OTHER GAMES</h2>
             <p class="text-center text-gray-400 mb-12">2PBlast 외에 즐길 수 있는 미니 게임 컬렉션</p>
             
-            <!-- FEATURED GAME: Pokemon Ultimate -->
             <div class="mb-12">
                 <div class="relative bg-gradient-to-r from-yellow-900/40 to-red-900/40 border-2 border-yellow-500 rounded-xl p-8 hover:shadow-[0_0_30px_rgba(234,179,8,0.3)] transition-all duration-300 transform hover:scale-[1.01] overflow-hidden group">
                     <div class="absolute -right-10 -bottom-10 opacity-10 text-9xl transform rotate-12 group-hover:rotate-0 transition-transform duration-700">⚡</div>
@@ -230,76 +233,49 @@
                 </div>
             </div>
 
-            <!-- Game Grid -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                
-                <!-- NEW GAME: UNDERTALE -->
+                <!-- UNDERTALE -->
                 <div class="bg-gray-800 rounded-lg p-6 hover:-translate-y-2 transition-transform duration-300 border-b-4 border-blue-600">
-                    <div class="h-32 bg-gray-900 rounded mb-4 flex items-center justify-center text-4xl">
-                        <img src="https://2pblast.kro.kr/Etc/sans/sans.png" alt="Sans the Skeleton" class="relative w-48 h-48 mx-auto object-contain pixelated filter drop-shadow-xl transform hover:scale-105 transition-transform duration-300" style="image-rendering: pixelated;" onerror="this.src='https://placehold.co/200x200/000000/FFFFFF/png?text=sans'; this.alt='Image not found'">
+                    <div class="h-32 bg-gray-900 rounded mb-4 flex items-center justify-center">
+                        <img src="https://github.com/LeeBingsu/UNDERTALE/assets/139062081/8388fd79-5630-4e81-85b9-65c2dc7386b8" alt="Sans" class="h-28 pixelated object-contain">
                     </div>
                     <h3 class="text-xl font-bold mb-2">UNDERTALE</h3>
                     <p class="text-gray-400 text-sm mb-4">의지로 가득 찬 지하 세계의 모험</p>
                     <a href="https://2pblast.kro.kr/Etc/sans/index.html" target="_blank" class="block w-full py-2 bg-blue-600 hover:bg-blue-500 text-center rounded font-bold transition-colors">PLAY</a>
                 </div>
 
-                <!-- Game 0 -->
-                <div class="bg-gray-800 rounded-lg p-6 hover:-translate-y-2 transition-transform duration-300 border-b-4 border-black-600">
-                    <div class="h-32 bg-gray-900 rounded mb-4 flex items-center justify-center text-4xl">
-                        🎧
-                    </div>
+                <!-- Incredibox -->
+                <div class="bg-gray-800 rounded-lg p-6 hover:-translate-y-2 transition-transform duration-300 border-b-4 border-gray-600">
+                    <div class="h-32 bg-gray-900 rounded mb-4 flex items-center justify-center text-4xl">🎧</div>
                     <h3 class="text-xl font-bold mb-2">Incredibox</h3>
                     <p class="text-gray-400 text-sm mb-4">자신만의 비트를 만들어보세요</p>
-                    <a href="https://2pblast.kro.kr/Etc/inc/index.html" target="_blank" class="block w-full py-2 bg-black-600 hover:bg-black-500 text-center rounded font-bold transition-colors">PLAY</a>
+                    <a href="https://2pblast.kro.kr/Etc/inc/index.html" target="_blank" class="block w-full py-2 bg-gray-600 hover:bg-gray-500 text-center rounded font-bold transition-colors">PLAY</a>
                 </div>
                 
-                <!-- Game 1 -->
+                <!-- Run 3 -->
                 <div class="bg-gray-800 rounded-lg p-6 hover:-translate-y-2 transition-transform duration-300 border-b-4 border-purple-600">
-                    <div class="h-32 bg-gray-900 rounded mb-4 flex items-center justify-center text-4xl">
-                        <img src="https://2pblast.kro.kr/Etc/run.png" alt="run3" class="relative w-48 h-48 mx-auto object-contain pixelated filter drop-shadow-xl transform hover:scale-105 transition-transform duration-300" style="image-rendering: pixelated;" onerror="this.src='https://placehold.co/200x200/000000/FFFFFF/png?text=run3'; this.alt='Image not found'">
+                    <div class="h-32 bg-gray-900 rounded mb-4 flex items-center justify-center">
+                        <img src="https://2pblast.kro.kr/Etc/run.png" alt="Run 3" class="h-28 pixelated object-contain">
                     </div>
                     <h3 class="text-xl font-bold mb-2">Run 3</h3>
                     <p class="text-gray-400 text-sm mb-4">끝없는 우주를 달리는 러닝 액션 게임</p>
                     <a href="https://2pblast.kro.kr/Etc/run3.html" target="_blank" class="block w-full py-2 bg-purple-600 hover:bg-purple-500 text-center rounded font-bold transition-colors">PLAY</a>
                 </div>
 
-                <!-- Game 2 -->
+                <!-- Space Invader -->
                 <div class="bg-gray-800 rounded-lg p-6 hover:-translate-y-2 transition-transform duration-300 border-b-4 border-green-600">
-                    <div class="h-32 bg-gray-900 rounded mb-4 flex items-center justify-center text-4xl">
-                        👾
-                    </div>
+                    <div class="h-32 bg-gray-900 rounded mb-4 flex items-center justify-center text-4xl">👾</div>
                     <h3 class="text-xl font-bold mb-2">Space Invader</h3>
                     <p class="text-gray-400 text-sm mb-4">멀티플레이가 가능한 고전 슈팅 게임</p>
                     <a href="https://2pblast.kro.kr/Etc/Space_invader.html" target="_blank" class="block w-full py-2 bg-green-600 hover:bg-green-500 text-center rounded font-bold transition-colors">PLAY MULTI</a>
-                </div>
-
-                <!-- Game 3 -->
-                <div class="bg-gray-800 rounded-lg p-6 hover:-translate-y-2 transition-transform duration-300 border-b-4 border-red-600">
-                    <div class="h-32 bg-gray-900 rounded mb-4 flex items-center justify-center text-4xl">
-                        ☄️
-                    </div>
-                    <h3 class="text-xl font-bold mb-2">Asteroid</h3>
-                    <p class="text-gray-400 text-sm mb-4">운석을 피하고 파괴하세요 (멀티플레이)</p>
-                    <a href="https://2pblast.kro.kr/Etc/Asteroid.html" target="_blank" class="block w-full py-2 bg-red-600 hover:bg-red-500 text-center rounded font-bold transition-colors">PLAY MULTI</a>
-                </div>
-
-                <!-- Game 4 -->
-                <div class="bg-gray-800 rounded-lg p-6 hover:-translate-y-2 transition-transform duration-300 border-b-4 border-yellow-600">
-                    <div class="h-32 bg-gray-900 rounded mb-4 flex items-center justify-center text-4xl">
-                        🔢
-                    </div>
-                    <h3 class="text-xl font-bold mb-2">2048</h3>
-                    <p class="text-gray-400 text-sm mb-4">숫자를 합쳐 2048을 만드세요</p>
-                    <a href="https://2pblast.kro.kr/Etc/2048.html" target="_blank" class="block w-full py-2 bg-yellow-600 hover:bg-yellow-500 text-center rounded font-bold transition-colors">PLAY</a>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- Download & Credits -->
-    <section id="download" class="py-16 bg-gradient-to-t from-black to-gray-900 border-t border-gray-800">
+    <footer id="download" class="py-16 bg-gradient-to-t from-black to-gray-900 border-t border-gray-800">
         <div class="max-w-4xl mx-auto px-4 text-center">
-            
             <div class="mb-16">
                 <h2 class="text-2xl font-retro mb-6">OFFLINE PLAY</h2>
                 <p class="text-gray-400 mb-6">인터넷 없이 즐기고 싶으신가요? HTML 파일을 다운로드하세요.<br><span class="text-xs text-gray-600">(업데이트가 중단된 구버전일 수 있습니다)</span></p>
@@ -320,23 +296,15 @@
                 <div>
                     <h3 class="font-retro text-lg text-pink-500 mb-4">CONTACT & RESOURCES</h3>
                     <ul class="space-y-2 text-gray-400 text-sm">
-                        <li>
-                            <i class="fa-solid fa-envelope mr-2"></i>
-                            <a href="mailto:me@bingsuk.kro.kr" class="hover:text-white transition-colors">me@bingsuk.kro.kr</a>
-                        </li>
-                        <li>
-                            <i class="fa-brands fa-youtube mr-2"></i>
-                            <a href="https://www.youtube.com/watch?v=LzfXJV_EjXY" target="_blank" class="hover:text-white transition-colors">Background Music</a>
-                        </li>
+                        <li><i class="fa-solid fa-envelope mr-2"></i> me@bingsuk.kro.kr</li>
+                        <li><i class="fa-brands fa-youtube mr-2"></i> <a href="https://www.youtube.com/watch?v=LzfXJV_EjXY" target="_blank" class="hover:text-white transition-colors">Background Music</a></li>
                     </ul>
                 </div>
             </div>
-            
-            <div class="mt-12 text-center text-xs text-gray-600">
-                &copy; 2022 2PBlast Project. All rights reserved.
-            </div>
+            <div class="mt-12 text-center text-xs text-gray-600">&copy; 2022 2PBlast Project. All rights reserved.</div>
         </div>
-    </section>
+    </footer>
 
 </body>
 </html>
+
