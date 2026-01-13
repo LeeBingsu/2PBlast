@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Neon Horizon: HARDCORE</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        #game-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none; /* Let clicks pass through to game container */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .hud-text {
+            color: #fff;
+            text-shadow: 0 0 10px #f00, 0 0 20px #f00; /* Changed to Red for aggressive feel */
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+        #score-display {
+            text-align: left;
+        }
+        #speed-display {
+            text-align: right;
+            color: #ff00de;
+            text-shadow: 0 0 10px #ff00de;
+        }
+        #menu-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+            pointer-events: auto;
+        }
+        h1 {
+            color: #fff;
+            font-size: 60px;
+            margin: 0 0 20px 0;
+            text-transform: uppercase;
+            background: linear-gradient(to bottom, #ff0000, #ff00de);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(255, 0, 0, 0.8);
+            text-align: center;
+            line-height: 1.1;
+            font-style: italic;
+        }
+        p {
+            color: #ccc;
+            font-size: 18px;
+            margin-bottom: 40px;
+            text-align: center;
+            max-width: 600px;
+            line-height: 1.5;
+        }
+        button {
+            background: transparent;
+            color: #ff0000;
+            border: 2px solid #ff0000;
+            padding: 15px 40px;
+            font-size: 24px;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 0 15px #ff0000;
+            letter-spacing: 2px;
+        }
+        button:hover {
+            background: #ff0000;
+            color: #000;
+            box-shadow: 0 0 30px #ff0000, 0 0 60px #ff0000;
+            transform: scale(1.05);
+        }
+        .hidden {
+            display: none !important;
+        }
+        #damage-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            box-shadow: inset 0 0 0 0 rgba(255, 0, 0, 0);
+            z-index: 5;
+            pointer-events: none;
+            transition: box-shadow 0.1s;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container"></div>
+
+    <div id="damage-overlay"></div>
+
+    <div id="ui-layer">
+        <div style="display: flex; justify-content: space-between; width: 100%;">
+            <div id="score-display" class="hud-text">SCORE: 0</div>
+            <div id="speed-display" class="hud-text">MACH 1.0</div>
+        </div>
+    </div>
+
+    <div id="menu-overlay">
+        <h1>Neon Horizon<br><span style="font-size: 30px; letter-spacing: 10px; color:white; -webkit-text-fill-color: white;">HARDCORE</span></h1>
+        <p><b>WARNING:</b> High speed detected.<br>Obstacles are unstable and will drift.<br>Visibility is reduced.<br><br>Move Mouse / Drag Touch to Steer.</p>
+        <button id="start-btn">ENGAGE</button>
+    </div>
+
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        /**
+         * NEON HORIZON GAME ENGINE - HARDCORE EDITION
+         */
+
+        // --- Configuration ---
+        const CONFIG = {
+            laneWidth: 100, 
+            fogDensity: 0.025, // Denser fog for harder reaction time
+            baseSpeed: 1.2,    // Faster start (was 0.8)
+            maxSpeed: 4.5,     // Higher top speed
+            speedIncrement: 0.0008, // Faster acceleration
+            cameraLag: 0.04,   // Snappier camera
+            colors: {
+                background: 0x020005, // Darker background
+                grid: 0xff0044,       // Redder grid
+                gridSecondary: 0x110011,
+                player: 0x00ffff,
+                playerEngine: 0xffffff,
+                obstacle: 0x050505,
+                obstacleEmissive: 0xff2200, // Hot orange/red
+                coin: 0x00ffaa
+            }
+        };
+
+        // --- Global Variables ---
+        let scene, camera, renderer;
+        let player;
+        let terrainGrid;
+        let particlesSystem;
+        let obstacles = [];
+        let coins = [];
+        let score = 0;
+        let gameSpeed = CONFIG.baseSpeed;
+        let isPlaying = false;
+        let isGameOver = false;
+        let animationId;
+        
+        // Input state
+        const input = { x: 0, y: 0 };
+        const targetInput = { x: 0, y: 0 }; 
+
+        // DOM Elements
+        const scoreEl = document.getElementById('score-display');
+        const speedEl = document.getElementById('speed-display');
+        const menuEl = document.getElementById('menu-overlay');
+        const startBtn = document.getElementById('start-btn');
+        const damageOverlay = document.getElementById('damage-overlay');
+
+        // --- Initialization ---
+        function init() {
+            // 1. Scene Setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(CONFIG.colors.background);
+            scene.fog = new THREE.FogExp2(CONFIG.colors.background, CONFIG.fogDensity);
+
+            // 2. Camera
+            camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000); // Wider FOV for speed feel
+            camera.position.set(0, 3, 9);
+            camera.lookAt(0, 0, -50);
+
+            // 3. Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); 
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('game-container').appendChild(renderer.domElement);
+
+            // 4. Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xff0055, 1.0);
+            dirLight.position.set(0, 20, 10);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 1024;
+            dirLight.shadow.mapSize.height = 1024;
+            scene.add(dirLight);
+
+            const playerLight = new THREE.PointLight(CONFIG.colors.player, 1.5, 25);
+            playerLight.position.set(0, 2, 0);
+            scene.add(playerLight);
+
+            // 5. Build World
+            createPlayer();
+            createTerrain();
+            createStars();
+
+            // 6. Events
+            window.addEventListener('resize', onWindowResize, false);
+            document.addEventListener('mousemove', onMouseMove, false);
+            document.addEventListener('touchmove', onTouchMove, { passive: false });
+            startBtn.addEventListener('click', startGame);
+
+            // Initial Render
+            renderer.render(scene, camera);
+        }
+
+        // --- Game Objects ---
+
+        function createPlayer() {
+            const geometry = new THREE.ConeGeometry(0.5, 2, 8);
+            geometry.rotateX(Math.PI / 2); 
+            
+            const material = new THREE.MeshStandardMaterial({
+                color: 0x111111,
+                emissive: CONFIG.colors.player,
+                emissiveIntensity: 1.0,
+                roughness: 0.2,
+                metalness: 0.9
+            });
+
+            player = new THREE.Mesh(geometry, material);
+            player.position.set(0, 1, 0);
+            player.castShadow = true;
+            scene.add(player);
+        }
+
+        function createTerrain() {
+            // Moving Grid Floor
+            const gridHelper = new THREE.GridHelper(200, 60, CONFIG.colors.grid, CONFIG.colors.gridSecondary);
+            gridHelper.position.y = -1;
+            scene.add(gridHelper);
+            terrainGrid = gridHelper;
+
+            // Reflective floor
+            const planeGeo = new THREE.PlaneGeometry(300, 300);
+            const planeMat = new THREE.MeshStandardMaterial({
+                color: 0x000000,
+                roughness: 0.05,
+                metalness: 0.95
+            });
+            const plane = new THREE.Mesh(planeGeo, planeMat);
+            plane.rotation.x = -Math.PI / 2;
+            plane.position.y = -1.1;
+            scene.add(plane);
+        }
+
+        function createStars() {
+            const geometry = new THREE.BufferGeometry();
+            const vertices = [];
+            for (let i = 0; i < 1500; i++) {
+                vertices.push(
+                    (Math.random() - 0.5) * 300,
+                    (Math.random() - 0.5) * 150 + 60, 
+                    (Math.random() - 0.5) * 300 - 50
+                );
+            }
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            const material = new THREE.PointsMaterial({ color: 0xffffff, size: 0.15, transparent: true });
+            particlesSystem = new THREE.Points(geometry, material);
+            scene.add(particlesSystem);
+        }
+
+        function spawnObstacle() {
+            const spawnX = (Math.random() - 0.5) * 35; // Wider spawn area
+            
+            const isCoin = Math.random() < 0.1; // Less coins in hard mode
+
+            if (isCoin) {
+                const geo = new THREE.OctahedronGeometry(0.6);
+                const mat = new THREE.MeshBasicMaterial({ color: CONFIG.colors.coin });
+                const coin = new THREE.Mesh(geo, mat);
+                coin.position.set(spawnX, 1.5, -100);
+                scene.add(coin);
+                coins.push(coin);
+            } else {
+                // Obstacle
+                const height = Math.random() * 8 + 3; // Taller obstacles
+                const geo = new THREE.BoxGeometry(1.5, height, 1.5);
+                const mat = new THREE.MeshStandardMaterial({
+                    color: CONFIG.colors.obstacle,
+                    emissive: CONFIG.colors.obstacleEmissive,
+                    emissiveIntensity: 0.8,
+                    roughness: 0.1
+                });
+                const obstacle = new THREE.Mesh(geo, mat);
+                obstacle.position.set(spawnX, height / 2 - 1, -100);
+                obstacle.castShadow = true;
+                obstacle.receiveShadow = true;
+                
+                // Neon edges
+                const edges = new THREE.EdgesGeometry(geo);
+                const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xff3300 }));
+                obstacle.add(line);
+
+                // Add drift property for movement
+                // Some move left (-1), some right (1), some stay (0)
+                const driftType = Math.random();
+                if (driftType > 0.6) {
+                    obstacle.userData = { drift: (Math.random() * 0.1) + 0.05 }; // Right
+                } else if (driftType < 0.4) {
+                    obstacle.userData = { drift: -((Math.random() * 0.1) + 0.05) }; // Left
+                } else {
+                    obstacle.userData = { drift: 0 };
+                }
+
+                scene.add(obstacle);
+                obstacles.push(obstacle);
+            }
+        }
+
+        // --- Game Logic ---
+
+        function startGame() {
+            if (isPlaying) return;
+            
+            score = 0;
+            gameSpeed = CONFIG.baseSpeed;
+            isGameOver = false;
+            isPlaying = true;
+
+            obstacles.forEach(o => scene.remove(o));
+            obstacles = [];
+            coins.forEach(c => scene.remove(c));
+            coins = [];
+
+            player.position.x = 0;
+            targetInput.x = 0;
+            
+            menuEl.classList.add('hidden');
+            scoreEl.innerText = "SCORE: 0";
+            speedEl.innerText = "MACH " + gameSpeed.toFixed(1);
+            damageOverlay.style.boxShadow = "none";
+
+            animate();
+        }
+
+        function gameOver() {
+            isPlaying = false;
+            isGameOver = true;
+            cancelAnimationFrame(animationId);
+            
+            menuEl.classList.remove('hidden');
+            menuEl.querySelector('h1').innerHTML = "CRITICAL<br>FAILURE";
+            menuEl.querySelector('p').innerHTML = `Final Score: ${Math.floor(score)}<br>Velocity at Impact: Mach ${(gameSpeed * 1.2).toFixed(1)}`;
+            startBtn.innerText = "RETRY";
+            
+            damageOverlay.style.boxShadow = "inset 0 0 100px 50px rgba(255, 0, 0, 0.8)";
+        }
+
+        function update() {
+            if (!isPlaying) return;
+
+            // 1. Difficulty Scaling
+            if(gameSpeed < CONFIG.maxSpeed) {
+                gameSpeed += CONFIG.speedIncrement;
+            }
+            score += gameSpeed * 0.2;
+            
+            scoreEl.innerText = `SCORE: ${Math.floor(score)}`;
+            speedEl.innerText = `MACH ${(gameSpeed * 1.2).toFixed(1)}`;
+
+            // 2. Player Movement
+            targetInput.x = THREE.MathUtils.lerp(targetInput.x, input.x * 18, 0.15); // Faster handling
+            player.position.x = targetInput.x;
+            
+            player.rotation.z = -targetInput.x * 0.08; 
+            player.rotation.y = -targetInput.x * 0.03;
+
+            // 3. Environment
+            terrainGrid.position.z += gameSpeed;
+            if (terrainGrid.position.z > 10) terrainGrid.position.z = 0;
+
+            particlesSystem.position.z += gameSpeed * 0.5;
+            if (particlesSystem.position.z > 50) particlesSystem.position.z = 0;
+
+            // 4. Obstacle Spawning (More frequent)
+            if (Math.random() < 0.09 * gameSpeed) {
+                spawnObstacle();
+            }
+
+            // 5. Entity Management
+            manageEntities(obstacles, true);
+            manageEntities(coins, false);
+        }
+
+        function manageEntities(entities, isDangerous) {
+            const playerBox = new THREE.Box3().setFromObject(player);
+            playerBox.expandByScalar(-0.3); // Tighter hitbox
+
+            for (let i = entities.length - 1; i >= 0; i--) {
+                const entity = entities[i];
+                entity.position.z += gameSpeed;
+
+                // Apply Drift Logic for Obstacles
+                if (isDangerous && entity.userData.drift) {
+                    entity.position.x += entity.userData.drift * gameSpeed;
+                }
+
+                entity.rotation.x += 0.02;
+                entity.rotation.y += 0.02;
+
+                if (entity.position.z > -5 && entity.position.z < 5) { 
+                    const entityBox = new THREE.Box3().setFromObject(entity);
+                    if (playerBox.intersectsBox(entityBox)) {
+                        if (isDangerous) {
+                            gameOver();
+                        } else {
+                            score += 1000;
+                            // Coin Visual
+                            const flash = new THREE.PointLight(0x00ffaa, 3, 15);
+                            flash.position.copy(entity.position);
+                            scene.add(flash);
+                            setTimeout(() => scene.remove(flash), 80);
+                            
+                            scene.remove(entity);
+                            entities.splice(i, 1);
+                            continue;
+                        }
+                    }
+                }
+
+                if (entity.position.z > 10) {
+                    scene.remove(entity);
+                    entities.splice(i, 1);
+                }
+            }
+        }
+
+        function animate() {
+            if (!isPlaying) return;
+            update();
+            renderer.render(scene, camera);
+            animationId = requestAnimationFrame(animate);
+        }
+
+        // --- Input Handling ---
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onMouseMove(event) {
+            input.x = (event.clientX / window.innerWidth) * 2 - 1;
+            input.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        }
+
+        function onTouchMove(event) {
+            event.preventDefault(); 
+            const touch = event.touches[0];
+            input.x = (touch.clientX / window.innerWidth) * 2 - 1;
+            input.y = -(touch.clientY / window.innerHeight) * 2 + 1;
+        }
+
+        init();
+
+    </script>
+</body>
+</html>
